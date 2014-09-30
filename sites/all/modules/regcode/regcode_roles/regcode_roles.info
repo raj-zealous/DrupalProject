@@ -1,0 +1,17 @@
+; $Id: regcode_roles.info,v 1.1.4.2 2010/03/06 05:21:58 aidan Exp $
+name = Role assignment
+description = Allows for automated role assignment.
+core = 7.x
+package = Registration
+
+dependencies[] = regcode
+
+files[] = regcode_roles.install
+files[] = regcode_roles.module
+
+; Information added by Drupal.org packaging script on 2014-01-07
+version = "7.x-1.1+9-dev"
+core = "7.x"
+project = "regcode"
+datestamp = "1389111201"
+

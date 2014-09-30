@@ -1,0 +1,1139 @@
+<?php
+
+/**
+ * Implements hook_init().
+ */
+function local_fixer_custom_init() {
+  global $user;
+  global $language;
+  // Timing issues require reloading the user object
+  // to get the password_change property set.
+  $account = user_load($user->uid);
+  // Ignore redirection during ajax call like, file upload, favicon.ico request, images request etc.
+  $request_uri = $_SERVER['REQUEST_URI'];
+  $request_is_ajax = FALSE;
+  if (strpos($request_uri, 'file/ajax') || strpos($request_uri, 'favicon.ico') || strpos($request_uri, 'sites/default/files')) {
+    //$request_is_ajax = TRUE;
+  }
+
+  if (($user->uid != 1 && $user->uid > 0) && $request_is_ajax == FALSE && (arg(0) != 'user' && arg(1) != 'logout') && variable_get('user_first_time_login_' . $account->uid) == 1) {
+
+    if (!drupalvariable_exists('my_profile_' . $account->uid) && arg(0) != 'my-profile') {
+      drupal_goto('my-profile');
+    }
+    if (!drupalvariable_exists('your_interest_' . $account->uid) && arg(0) != 'your-interests') {
+      drupal_goto('your-interests');
+    }
+    if (drupalvariable_exists('my_profile_' . $account->uid) && variable_get('my_profile_' . $account->uid) == 0 && arg(0) != 'my-profile') {
+      drupal_goto('my-profile');
+    }
+    if (drupalvariable_exists('your_interest_' . $account->uid) && variable_get('your_interest_' . $account->uid) == 0 && drupalvariable_exists('my_profile_' . $account->uid) && variable_get('my_profile_' . $account->uid) == 1 && arg(0) != 'your-interests') {
+      drupal_goto('your-interests');
+    }
+  }
+}
+
+/**
+ * Implements hook_user_login().
+ */
+function local_fixer_custom_user_login(&$edit, $account) {
+  if (!drupalvariable_exists('user_first_time_login_' . $account->uid)) {
+    variable_set('my_profile_' . $account->uid, 0);
+    variable_set('your_interest_' . $account->uid, 0);
+    variable_set('user_first_time_login_' . $account->uid, 1);
+  }
+}
+
+/**
+ * hook_profile2_insert
+ */
+function local_fixer_custom_profile2_insert($profile) {
+  
+}
+
+/**
+ * hook_profile2_presave
+ */
+function local_fixer_custom_profile2_presave($profile) {
+  global $user;
+  $uid = $user->uid;
+  if ($profile->type == 'main') {
+    if (!drupalvariable_exists('my_profile_' . $uid)) {
+      variable_set('my_profile_' . $uid, 1);
+    }
+    if (variable_get('my_profile_' . $uid) == 0) {
+      variable_set('my_profile_' . $uid, 1);
+      variable_set('your_interest_' . $uid, 0);
+    }
+  }
+  if ($profile->type == 'your_interest') {
+    if (!drupalvariable_exists('your_interest_' . $uid)) {
+      if (variable_get('my_profile_' . $uid) == 1) {
+        variable_set('your_interest_' . $uid, 1);
+      }
+    }
+    if (variable_get('your_interest_' . $uid) == 0) {
+      variable_set('your_interest_' . $uid, 1);
+    }
+  }
+}
+
+/**
+ * hook_user_presave
+ */
+function local_fixer_custom_user_presave(&$edit, $account, $category) {
+  
+}
+
+/**
+ * @file
+ * This file contains general hook functions
+ */
+function local_fixer_custom_permission() {
+  return array(
+    'access cities page' => array(
+      'title' => t('Access Cities Autocomplete'),
+      'description' => t('Display the Cities Autocomplete.'),
+    ),
+    'access reviews page' => array(
+      'title' => t('Access to Save review'),
+      'description' => t('Access to Save review.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ */
+function local_fixer_custom_menu() {
+
+  $items['admin/config/system/custom'] = array(
+    'title' => 'Custom Form Admin Settings',
+    'description' => 'Custom Form Admin Settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('custom_admin_settings'),
+    'access arguments' => array('administer site configuration'),
+    'file' => 'local_fixer_custom.admin.inc',
+    'position' => 'right',
+  );
+  $items['my-profile'] = array(
+    'title' => 'My Profile',
+    'page callback' => '_my_profile',
+    'type' => MENU_CALLBACK,
+    'access callback' => TRUE,
+  );
+
+  $items['your-interests'] = array(
+    'title' => 'Your Interests',
+    'page callback' => '_your_interests',
+    'type' => MENU_CALLBACK,
+    'access callback' => TRUE,
+  );
+
+  $items['share-items-acc'] = array(
+    'title' => ' Share Your items & accommodation',
+    'page callback' => '_share_items_acc',
+    'type' => MENU_CALLBACK,
+    'access callback' => TRUE,
+  );
+
+
+  $items['cities/autocomplete'] = array(
+    'title' => 'Autocomplete for cities',
+    'page callback' => '_cities_autocomplete',
+    'access arguments' => array('access cities page'),
+    'type' => MENU_CALLBACK
+  );
+
+  $items['save_review/%'] = array(
+    'title' => ' Save review to your profile',
+    'page callback' => 'save_review',
+    'page arguments' => array(1),
+    'type' => MENU_CALLBACK,
+    'access callback' => TRUE,
+    'access arguments' => array('access reviews page'),
+  );
+
+  $items['remove_review/%'] = array(
+    'title' => ' Remove review from your profile',
+    'page callback' => 'remove_review',
+    'page arguments' => array(1),
+    'type' => MENU_CALLBACK,
+    'access callback' => TRUE,
+    'access arguments' => array('access reviews page'),
+  );
+
+
+  return $items;
+}
+
+/**
+ * Implements hook_form_alter().
+ * To disable formating tips from node forms
+ */
+function local_fixer_custom_form_alter(&$form, &$form_state, $form_id) {
+  //echo $form_id;
+
+  if ($form_id == 'user_register_form') {
+    unset($form['account']['mail']['#title']);
+    unset($form['account']['name']['#description']);
+    unset($form['account']['mail']['#description']);
+    unset($form['account']['pass']['#description']);
+
+    $link = fboauth_action_link_properties('connect');
+
+    $form['blok_title'] = array(
+      '#markup' => '<h2>Signup Now!</h2>',
+      '#weight' => -100,
+    );
+    //echo '<pre>';print_r($form);die;
+    $form['account']['pass']['#type'] = "password";
+    $form['account']['name']['#title'] = "";
+    $form['account']['name']['#prefix'] = '<div class="popup-form-field">';
+    $form['account']['name']['#suffix'] = '</div>';
+    //$form['account']['mail']['#title'] = "";
+    $form['account']['mail']['#prefix'] = '<div class="popup-form-field">';
+    $form['account']['mail']['#suffix'] = '</div>';
+    $form['account']['pass']['#prefix'] = '<div class="popup-form-field">';
+    $form['account']['pass']['#suffix'] = '</div>';
+    $form['account']['mail']['#attributes']['placeholder'][] = 'Email';
+    $form['account']['pass']['#attributes']['placeholder'][] = 'Password';
+
+    $form['actions']['submit']['#prefix'] = '<div class="popup-form-btn clearfix">';
+    $form['actions']['submit']['#attributes']['class'][] = 'btn-orange';
+    $form['actions']['submit']['#value'] = t('Sign Up');
+    $form['actions']['submit']['#suffix'] = l('<img src="' . base_path() . path_to_theme() . '/images/fb-login-btn.png" alt=""/>', $link['href'], array('query' => $link['query'], 'html' => TRUE, 'attributes' => array('title' => 'Facebook Login'))) . '</div>';
+    $form['#suffix'] = '<div class="popup-footer-inline clearfix">
+			<div class="signup-footer">Have an account? &nbsp;<a class="ctools-use-modal ctools-modal-ctools-ajax-register-style"  href="/modal_forms/nojs/login" title="Login">Login</a></div>
+		</div>
+    <script>
+      jQuery(\'#modal-content .popup-footer-inline\').hide();
+      jQuery(\'.popup-footer\').html(jQuery(\'#modal-content .popup-footer-inline\').html());
+    </script>';
+    unset($form['profile_main']['field_name']);
+    unset($form['profile_main']['field_gender']);
+    unset($form['profile_main']['field_city']);
+    unset($form['profile_main']['field_postcode']);
+  }
+
+
+  if ($form_id == 'user_login') {
+    $form['blok_title'] = array(
+      '#markup' => '<h2>Account Login</h2>',
+      '#weight' => -100,
+    );
+    unset($form['name']['#title']);
+    unset($form['pass']['#title']);
+    unset($form['name']['#description']);
+    unset($form['pass']['#description']);
+    unset($form['name']['#attributes']['class']);
+    unset($form['pass']['#attributes']['class']);
+
+    $link = fboauth_action_link_properties('connect');
+
+    $form['name']['#prefix'] = '<div class="popup-form-field">';
+    $form['name']['#suffix'] = '</div>';
+    $form['pass']['#prefix'] = '<div class="popup-form-field">';
+    $form['pass']['#suffix'] = '</div>';
+    $form['name']['#attributes']['placeholder'][] = 'Email';
+    $form['pass']['#attributes']['placeholder'][] = 'Password';
+
+    $form['actions']['submit']['#prefix'] = '<div class="popup-form-btn clearfix">';
+    $form['actions']['submit']['#suffix'] = l('<img src="' . base_path() . path_to_theme() . '/images/fb-login-btn.png" alt=""/>', $link['href'], array('query' => $link['query'], 'html' => TRUE, 'attributes' => array('title' => 'Facebook Login'))) . '</div>';
+    $form['actions']['submit']['#attributes']['class'][] = 'btn-orange';
+    $form['actions']['submit']['#value'] = t('Login');
+
+    $form['#suffix'] = '<div class="popup-footer-inline clearfix">
+			<a href="/ajax_register/password/nojs" class="ctools-use-modal ctools-modal-ctools-ajax-register-style">Forgot Password</a>
+			<span>Don\'t have an account?&nbsp;<a class="ctools-use-modal ctools-modal-ctools-ajax-register-style" href="/modal_forms/nojs/register" title="Get Started">Get Started</a></span>
+		</div>
+    <script>
+      jQuery(\'#modal-content .popup-footer-inline\').hide();
+      jQuery(\'.popup-footer\').html(jQuery(\'#modal-content .popup-footer-inline\').html());
+    </script>';
+  }
+
+
+  if ($form_id == 'user_pass') {
+
+
+    unset($form['account']['pass']['#description']);
+    unset($form['name']['#title']);
+
+    $form['blok_title'] = array(
+      '#markup' => '<h3>FORGOTTEN YOUR PASSWORD?</h3>',
+      '#weight' => -100,
+    );
+    $form['blok_desc'] = array(
+      '#markup' => 'Enter your email address to retrive your password.',
+      '#weight' => -99,
+    );
+    //echo '<pre>';print_r($form);die;
+
+    $form['name']['#prefix'] = '<div class="popup-form-field popup-form-field-fp">';
+    $form['name']['#suffix'] = '</div>';
+    $form['name']['#size'] = 20;
+    $form['name']['#attributes']['placeholder'][] = 'Email';
+    $form['actions']['submit']['#prefix'] = '<div class="popup-form-btn clearfix popup-form-btn-fp">';
+    $form['actions']['submit']['#suffix'] = '</div>';
+    $form['actions']['submit']['#attributes']['class'][] = 'btn-orange';
+    $form['actions']['submit']['#value'] = t('Reset');
+    $form['#suffix'] = '<div class="popup-footer-inline clearfix">
+			<div class="signup-footer">Know your password? &nbsp;<a class="ctools-use-modal ctools-modal-ctools-ajax-register-style"  href="/modal_forms/nojs/login" title="Login">Login</a></div>		
+		</div>
+    <script>
+      jQuery(\'#modal-content .popup-footer-inline\').hide();
+      jQuery(\'.popup-footer\').html(jQuery(\'#modal-content .popup-footer-inline\').html());
+    </script>';
+  }
+  if ($form_id == 'user_profile_form') {
+    $arg = arg();
+    if (!empty($arg[0]) && $arg[0] == 'user' && !empty($arg[1]) && $arg[1] > 0 && !empty($arg[2]) && $arg[2] == 'edit') {
+      if (!empty($arg[3]) && $arg[3] == 'your_interest') {
+
+        $form['#submit'][] = '_profile_your_interests_custom_submit';
+        hide($form['account']['mail']);
+        //hide($form['picture']);
+        unset($form['account']['name']);
+        unset($form['account']['fboauth']);
+        unset($form['account']['pass']);
+        unset($form['account']['current_pass_required_values']);
+        unset($form['account']['current_pass']);
+        unset($form['profile_main']['field_name']);
+        unset($form['profile_main']['field_gender']);
+        unset($form['profile_main']['field_city']);
+        unset($form['profile_main']['field_postcode']);
+        unset($form['profile_main']['field_bio']);
+        unset($form['profile_main']['field_birth_date']);
+        unset($form['profile_main']['field_country']);
+        unset($form['profile_main']['field_current_location']);
+        unset($form['profile_main']['field_food']);
+        unset($form['profile_main']['field_drink']);
+        unset($form['profile_main']['field_activity']);
+        unset($form['profile_main']['field_sleep']);
+        unset($form['profile_main']['field_profile_image']);
+        unset($form['profile_main']['field_hide_gender']);
+        unset($form['profile_main']['field_hide_birth_date']);
+
+        $form['profile_your_interest']['field_interests']['und']['#title'] = '';
+
+        $form['actions']['submit']['#attributes']['class'][] = 'btn-orange';
+        $form['actions']['submit']['#value'] = t('CONTINUE');
+        //echo '<pre>';print_r($form);die;
+      } else if (!empty($arg[3]) && $arg[3] == 'share-items-acc') {
+
+        $form['actions']['submit']['#attributes']['class'][] = 'btn-orange';
+        $form['actions']['submit']['#value'] = t('CONTINUE');
+      } else {
+
+        $form['picture']['picture_current']['#prefix'] = '<div class="profile-details">
+              <div class="profile-pic">      ';
+        $form['picture']['picture_current']['#suffix'] = '</div></div>';
+        $form['picture']['picture_delete']['#description'] = '';
+        $form['picture']['picture_upload']['#description'] = '';
+        $form['picture']['picture_upload']['#title'] = "<a>Add profile pic</a>";
+        unset($form['profile_your_interest']['field_interests']);
+        unset($form['account']['fboauth']);
+
+
+        $form['profile_main']['field_name']['und']['#theme_wrappers'] = array(); // remove the wrapper
+        $form['profile_main']['field_name']['und'][0]['value']['#suffix'] = '';
+        $form['profile_main']['field_name']['und'][0]['value']['#title_display'] = 'none';
+        $form['profile_main']['field_name']['und'][0]['value']['#attributes']['placeholder'] = t('Name*');
+
+
+        $form['account']['mail']['#prefix'] = '';
+        $form['account']['mail']['#theme_wrappers'] = array(); // remove the wrapper
+        $form['account']['mail']['#suffix'] = '';
+        $form['account']['mail']['#title_display'] = 'none';
+        $form['account']['mail']['#attributes']['placeholder'] = t('Email*');
+        $form['account']['mail']['#description'] = '';
+
+        $form['profile_main']['field_country']['und'][0]['value']['#prefix'] = '';
+        $form['profile_main']['field_country']['und']['#theme_wrappers'] = array(); // remove the wrapper
+        $form['profile_main']['field_country']['und'][0]['value']['#suffix'] = '';
+        $form['profile_main']['field_country']['und'][0]['value']['#title_display'] = 'none';
+        $form['profile_main']['field_country']['und']['#options']['_none'] = t("Country");
+
+        $form['profile_main']['field_city']['und'][0]['value']['#prefix'] = '';
+        $form['profile_main']['field_city']['und']['#theme_wrappers'] = array(); // remove the wrapper
+        $form['profile_main']['field_city']['und'][0]['value']['#suffix'] = '';
+        $form['profile_main']['field_city']['und'][0]['value']['#title_display'] = 'none';
+        $form['profile_main']['field_city']['und'][0]['value']['#attributes']['placeholder'] = t('City*');
+        $form['profile_main']['field_city']['und'][0]['value']['#attributes']['class'] = array('first');
+
+        $form['profile_main']['field_postcode']['und'][0]['value']['#prefix'] = '';
+        $form['profile_main']['field_postcode']['und']['#theme_wrappers'] = array(); // remove the wrapper
+        $form['profile_main']['field_postcode']['und'][0]['value']['#suffix'] = '';
+        $form['profile_main']['field_postcode']['und'][0]['value']['#title_display'] = 'none';
+        $form['profile_main']['field_postcode']['und'][0]['value']['#attributes']['placeholder'] = t('Postcode*');
+
+        $form['profile_main']['field_current_location']['und']['#title_display'] = 'none';
+        $form['profile_main']['field_current_location']['und']['#theme_wrappers'] = array(); // remove the wrapper
+
+        $form['profile_main']['field_gender']['und']['#prefix'] = '';
+        $form['profile_main']['field_gender']['und']['#theme_wrappers'] = array(); // remove the wrapper
+        $form['profile_main']['field_gender']['und']['#suffix'] = '';
+        $form['profile_main']['field_gender']['und']['#title_display'] = 'none';
+
+        $form['profile_main']['field_hide_gender']['und']['#theme_wrappers'] = array(); // remove the wrapper
+        $form['profile_main']['field_hide_gender']['und']['#title_display'] = 'none';
+
+        $form['profile_main']['field_birth_date']['und'][0]['#prefix'] = '';
+        $form['profile_main']['field_birth_date']['und'][0]['#theme_wrappers'] = array(); // remove the wrapper
+        $form['profile_main']['field_birth_date']['und'][0]['#suffix'] = '';
+
+        $form['profile_main']['field_hide_birth_date']['und']['#prefix'] = '';
+        $form['profile_main']['field_hide_birth_date']['und']['#title'] = '';
+        $form['profile_main']['field_hide_birth_date']['und']['#theme_wrappers'] = array(); // remove the wrapper
+        $form['profile_main']['field_hide_birth_date']['und']['#suffix'] = '';
+        $form['profile_main']['field_hide_birth_date']['und']['#title_display'] = 'none';
+        $form['profile_main']['field_hide_birth_date']['#attributes']['class'] = array("custom_radio_btn");
+
+        $form['profile_main']['field_bio']['und'][0]['value']['#prefix'] = '';
+        $form['profile_main']['field_bio']['und'][0]['value']['#title'] = '';
+        $form['profile_main']['field_bio']['und']['#theme_wrappers'] = array(); // remove the wrapper
+        $form['profile_main']['field_bio']['und'][0]['value']['#resizable'] = FALSE; // remove the wrapper
+        $form['profile_main']['field_bio']['und'][0]['value']['#suffix'] = '';
+        $form['profile_main']['field_bio']['und'][0]['value']['#title_display'] = 'none';
+        $form['profile_main']['field_bio']['und'][0]['value']['#attributes']['placeholder'] = t('Write a few words to describe why you are a great fixer!');
+
+        $form['actions']['submit']['#attributes']['class'][] = 'btn-orange';
+        $form['actions']['submit']['#value'] = t('CONTINUE');
+
+
+        array_unshift($form['#submit'], '_profile_main_custom_submit');
+
+        $form['#validate'][] = '_profile_main_custom_validate';
+      }
+    }
+  }
+
+  if ($form_id == 'stuff_node_form') {
+
+    $form['field_stuff_image']['und']['#file_upload_title'] = "";
+    $form['field_stuff_image']['und']['#file_upload_description'] = "";
+    unset($form['field_stuff_image']['und'][0]['#description']);
+    unset($form['title']['#title']);
+//echo '<pre>';print_r($form);die;
+    $form['title']['#prefix'] = '<label>List any items you would like to share with travellers</label>';
+    $form['title']['#attributes']['placeholder'][] = t('Item Name');
+    $form['field_stuff_price']['und'][0]['value']['#attributes']['placeholder'][] = t('$ Enter an ammount...');
+
+    $form['actions']['submit']['#value'] = t('+ADD');
+
+    $form['actions']['submit']['#submit'][] = '_items_custom_submit';
+  }
+  if ($form_id == 'status_node_form') {
+
+    //echo '<pre>';print_r($form);die;
+    //$form_state['redirect'] = current_path();
+    hide($form['title']);
+    $form['title']['#default_value'] = 'Status';
+
+    $form['field_post_status']['und'][0]['#title'] = t('');
+    $form['actions']['submit']['#value'] = t('+POST');
+    $form['actions']['submit']['#prefix'] = '<div class="sharing-btn">';
+    $form['actions']['submit']['#suffix'] = '</div>';
+    $form['actions']['submit']['#attributes']['class'][] = 'send-msg';
+
+    array_unshift($form['actions']['submit']['#submit'], '_post_status_custom_submit');
+  }
+  if ($form_id == 'accomodation_node_form') {
+
+    $form['field_accomodation_image']['und']['#file_upload_title'] = "";
+    $form['field_accomodation_image']['und']['#file_upload_description'] = "";
+    unset($form['field_accomodation_image']['und'][0]['#description']);
+    unset($form['title']['#title']);
+
+    $form['title']['#prefix'] = '<label>Do you have a room or a place available? List it here.</label>';
+    $form['title']['#attributes']['placeholder'][] = t('Address of accommodation');
+    $form['field_accomodation_price_per_nig']['und'][0]['value']['#attributes']['placeholder'][] = t('$ Enter an ammount...');
+
+    $form['actions']['submit']['#value'] = t('+ADD');
+    $form['actions']['submit']['#submit'][] = '_items_custom_submit';
+  }
+  if ($form_id == 'review_node_form') {
+
+    //echo '<pre>';print_r($form['field_location']);die;
+    unset($form['field_reivew_interest']['und']['#title']);
+    unset($form['field_review_name_of_est']['und'][0]['value']['#title']);
+    unset($form['title']['#title']);
+
+    $form['field_review_location']['und'][0]['#title'] = '';
+    $form['field_review_location']['und'][0]['country']['#options']['_none'] = t('Country');
+    //$form['field_review_location']['und'][0]['country']['#title'] = t('');
+    unset($form['field_review_location']['und'][0]['country']['#title']);
+    $form['field_review_location']['und'][0]['country']['#prefix'] = '<div class="form-field-box">';
+    $form['field_review_location']['und'][0]['country']['#suffix'] = '</div>';
+    $form['field_review_location']['und'][0]['country']['#weight'] = 1;
+
+
+    $form['field_review_location']['und'][0]['locality_block']['#weight'] = 2;
+    $form['field_review_location']['und'][0]['locality_block']['#attributes']['class'] = 'form-field-box city-box clearfix';
+    //$form['field_review_location']['und'][0]['locality_block']['locality']['#title'] = t('');
+    unset($form['field_review_location']['und'][0]['locality_block']['locality']['#title']);
+    $form['field_review_location']['und'][0]['locality_block']['locality']['#attributes']['placeholder'] = t('City / Town / Province');
+    $form['field_review_location']['und'][0]['locality_block']['locality']['#attributes']['class'][] = 'first';
+    //$form['field_review_location']['und'][0]['locality_block']['administrative_area']['#title'] = t('');
+    unset($form['field_review_location']['und'][0]['locality_block']['administrative_area']['#title']);
+    $form['field_review_location']['und'][0]['locality_block']['administrative_area']['#attributes']['placeholder'] = t('State');
+    unset($form['field_review_location']['und'][0]['locality_block']['postal_code']);
+
+    $form['field_review_location']['und'][0]['street_block']['#weight'] = 3;
+    $form['field_review_location']['und'][0]['street_block']['#attributes']['class'] = 'form-field-box city-box clearfix';
+    //$form['field_review_location']['und'][0]['street_block']['thoroughfare']['#title'] = t('');
+    unset($form['field_review_location']['und'][0]['street_block']['thoroughfare']['#title']);
+    $form['field_review_location']['und'][0]['street_block']['thoroughfare']['#attributes']['placeholder'] = t('Street Name');
+    $form['field_review_location']['und'][0]['street_block']['thoroughfare']['#attributes']['class'][] = 'first';
+    unset($form['field_review_location']['und'][0]['street_block']['premise']['#title']);
+    $form['field_review_location']['und'][0]['street_block']['premise']['#attributes']['placeholder'] = t('Street No.');
+
+
+
+    $form['field_review_images']['und']['#title'] = '';
+    $form['field_review_images']['und']['#description'] = '';
+    $form['field_review_images']['und'][0]['#theme_wrappers'] = array();
+
+    $form['field_review_description']['und'][0]['value']['#prefix'] = '';
+    $form['field_review_description']['und'][0]['value']['#title'] = '';
+    $form['field_review_description']['und']['#theme_wrappers'] = array(); // remove the wrapper
+    $form['field_review_description']['und'][0]['value']['#resizable'] = FALSE; // remove the wrapper
+    $form['field_review_description']['und'][0]['value']['#suffix'] = '';
+    $form['field_review_description']['und'][0]['value']['#title_display'] = 'none';
+    $form['field_review_description']['und'][0]['value']['#attributes']['placeholder'] = t('Write something...');
+
+    $form['field_review_type']['und']['#prefix'] = '';
+    $form['field_review_type']['und']['#theme_wrappers'] = array(); // remove the wrapper
+    $form['field_review_type']['und']['#suffix'] = '';
+    $form['field_review_type']['und']['#title_display'] = 'none';
+
+
+    $form['title']['#attributes']['placeholder'][] = t('Title of review');
+
+//    $form['field_review_name_of_est']['und'][0]['value']['#default_value'] = !empty($_GET['est']) ? $_GET['est'] : $form['field_review_name_of_est']['und'][0]['value']['#default_value'];
+    $form['field_review_name_of_est']['und'][0]['value']['#attributes']['placeholder'][] = t('Name of establishment');
+
+    $form['actions']['submit']['#value'] = t('Post Review');
+    $form['actions']['submit']['#attributes']['class'][] = 'btn-orange';
+  }
+  if ($form_id == 'views_exposed_form') {
+//    echo '<pre>';
+//    print_r($form);
+//    die;
+
+      if ($form['#id'] == 'views-exposed-form-openlayers-data-overlay-page-1') {
+      //echo '<pre>';print_r($form);die;
+      hide($form['field_review_ratings_rating_1']);
+      hide($form['field_review_ratings_rating_2']);
+      hide($form['field_review_type_tid']);
+
+      $form['title']['#attributes']['class'][] = 'default-input';
+      $form['title']['#attributes']['placeholder'] = t('Keyword');
+      $form['field_review_location_locality']['#autocomplete_path'] = 'cities/autocomplete';
+      $form['field_review_location_locality']['#attributes']['class'][] = 'default-input';
+      $form['field_review_location_locality']['#attributes']['placeholder'] = t('Location');
+      $form['field_reivew_interest_tid']['#options']['All'] = t("Interests");
+      $form['field_reivew_interest_tid']['#prefix'] = "<div class='interests-select'>";
+      $form['field_reivew_interest_tid']['#suffix'] = "</div>";
+      $form['field_review_ratings_rating']['#type'] = "select";
+      $form['field_review_ratings_rating']['#prefix'] = "<div class='interests-select'>";
+      $form['field_review_ratings_rating']['#suffix'] = "</div>";
+      $form['field_review_ratings_rating']['#size'] = null;
+      $form['field_review_ratings_rating']['#options'] = array(
+        '' => t('Rating'),
+        20 => t('1'),
+        40 => t('2'),
+        60 => t('3'),
+        80 => t('4'),
+        100 => t('5')
+      );
+
+
+      $form['submit']['#attributes']['class'][] = 'btn-orange';
+    }
+
+
+    if ($form['#id'] == 'views-exposed-form-openlayers-data-overlay-page-2') {
+//      echo '<pre>';
+//      print_r($form);
+//      die;
+      //hide($form['field_reivew_interest_tid']);
+      $form['field_reivew_interest_tid']['#prefix'] = '<div class="intrest-title">Interests</div>';
+
+      $form['title']['#attributes']['class'][] = 'default-input';
+      $form['title']['#attributes']['placeholder'] = t('Espresso');
+      $form['title']['#field_prefix'] = "<div class='filter-form'>";
+      $form['title']['#field_suffix'] = "</div>";
+
+      $form['field_review_location_locality']['#autocomplete_path'] = 'cities/autocomplete';
+      $form['field_review_location_locality']['#attributes']['class'][] = 'default-input';
+      $form['field_review_location_locality']['#attributes']['placeholder'] = t('Melbourne');
+      $form['field_review_location_locality']['#field_prefix'] = "<div class='filter-form'>";
+      $form['field_review_location_locality']['#field_suffix'] = "</div>";
+
+      $form['field_review_ratings_rating_1']['#type'] = "select";
+      $form['field_review_ratings_rating_1']['#field_prefix'] = "<span class='text3'>Ratings </span><div class='rating-filter'>";
+      $form['field_review_ratings_rating_1']['#field_suffix'] = "</div>";
+      $form['field_review_ratings_rating_1']['#size'] = null;
+      $form['field_review_ratings_rating_1']['#options'] = array(
+        20 => t('1 Star'),
+        40 => t('2 Star'),
+        60 => t('3 Star'),
+        80 => t('4 Star'),
+        100 => t('5 Star')
+      );
+
+
+      $form['field_review_ratings_rating_2']['#type'] = "select";
+      $form['field_review_ratings_rating_2']['#field_prefix'] = "<span class='text3'>to </span><div class='rating-filter'>";
+      $form['field_review_ratings_rating_2']['#field_suffix'] = "</div>";
+      $form['field_review_ratings_rating_2']['#size'] = null;
+      $form['field_review_ratings_rating_2']['#default_value'] = 100;
+      $form['field_review_ratings_rating_2']['#options'] = array(
+        20 => t('1 Star'),
+        40 => t('2 Star'),
+        60 => t('3 Star'),
+        80 => t('4 Star'),
+        100 => t('5 Star')
+      );
+
+
+
+      $form['submit']['#prefix'] = '<div class="update-search">';
+      $form['submit']['#suffix'] = '</div>';
+      $form['submit']['#attributes']['class'][] = 'btn-orange';
+    }
+
+    if ($form['#id'] == 'views-exposed-form-search-reviews-page') {
+
+      hide($form['field_review_ratings_rating_1']);
+      hide($form['field_review_ratings_rating_2']);
+      hide($form['field_review_type_tid']);
+      hide($form['sort_by']);
+      hide($form['sort_order']);
+
+      $form['title']['#attributes']['class'][] = 'default-input';
+      $form['title']['#attributes']['placeholder'] = t('Keyword');
+
+      $form['field_review_location_locality']['#autocomplete_path'] = 'cities/autocomplete';
+      $form['field_review_location_locality']['#attributes']['class'][] = 'default-input';
+      $form['field_review_location_locality']['#attributes']['placeholder'] = t('Location');
+      $form['field_reivew_interest_tid']['#options']['All'] = t("Interests");
+      $form['field_reivew_interest_tid']['#prefix'] = "<div class='interests-select'>";
+      $form['field_reivew_interest_tid']['#suffix'] = "</div>";
+      $form['field_review_ratings_rating']['#type'] = "select";
+      $form['field_review_ratings_rating']['#prefix'] = "<div class='interests-select'>";
+      $form['field_review_ratings_rating']['#suffix'] = "</div>";
+      $form['field_review_ratings_rating']['#size'] = null;
+      $form['field_review_ratings_rating']['#options'] = array(
+        '' => t('Rating'),
+        20 => t('1'),
+        40 => t('2'),
+        60 => t('3'),
+        80 => t('4'),
+        100 => t('5')
+      );
+
+
+      $form['submit']['#attributes']['class'][] = 'btn-orange';
+    }
+
+    if ($form['#id'] == 'views-exposed-form-search-reviews-page-1') {
+//echo '<pre>';print_r($form);die;
+      hide($form['field_review_ratings_rating']);
+      hide($form['sort_by']);
+      hide($form['sort_order']);
+
+      $form['field_reivew_interest_tid']['#prefix'] = '<div class="intrest-title">Interests</div>';
+
+      $form['title']['#attributes']['class'][] = 'default-input';
+      $form['title']['#attributes']['placeholder'] = t('Espresso');
+      $form['title']['#field_prefix'] = "<div class='filter-form'>";
+      $form['title']['#field_suffix'] = "</div>";
+
+      $form['field_review_location_locality']['#autocomplete_path'] = 'cities/autocomplete';
+      $form['field_review_location_locality']['#attributes']['class'][] = 'default-input';
+      $form['field_review_location_locality']['#attributes']['placeholder'] = t('Melbourne');
+      $form['field_review_location_locality']['#field_prefix'] = "<div class='filter-form'>";
+      $form['field_review_location_locality']['#field_suffix'] = "</div>";
+
+      $form['field_review_ratings_rating_1']['#type'] = "select";
+      $form['field_review_ratings_rating_1']['#field_prefix'] = "<span class='text3'>Ratings </span><div class='rating-filter'>";
+      $form['field_review_ratings_rating_1']['#field_suffix'] = "</div>";
+      $form['field_review_ratings_rating_1']['#size'] = null;
+      $form['field_review_ratings_rating_1']['#options'] = array(
+        20 => t('1 Star'),
+        40 => t('2 Star'),
+        60 => t('3 Star'),
+        80 => t('4 Star'),
+        100 => t('5 Star')
+      );
+
+
+
+      $form['field_review_ratings_rating_2']['#type'] = "select";
+      $form['field_review_ratings_rating_2']['#field_prefix'] = "<span class='text3'>to </span><div class='rating-filter'>";
+      $form['field_review_ratings_rating_2']['#field_suffix'] = "</div>";
+      $form['field_review_ratings_rating_2']['#size'] = null;
+      $form['field_review_ratings_rating_2']['#default_value'] = 100;
+      $form['field_review_ratings_rating_2']['#options'] = array(
+        20 => t('1 Star'),
+        40 => t('2 Star'),
+        60 => t('3 Star'),
+        80 => t('4 Star'),
+        100 => t('5 Star')
+      );
+
+
+
+      $form['submit']['#prefix'] = '<div class="update-search">';
+      $form['submit']['#suffix'] = '</div>';
+      $form['submit']['#attributes']['class'][] = 'btn-orange';
+    }
+  }
+
+  if ($form_id == 'webform_client_form_21') {
+    //echo '<pre>';print_r($form);die;
+    $form['submitted']['where_are_you_going']['#attributes']['class'][] = 'default-input';
+    $form['submitted']['where_are_you_going']['#attributes']['placeholder'] = t('Where are you going...');
+    $form['submitted']['where_are_you_going']['#prefix'] = "<div class='form-field-box'><div class='col-sm-6'>";
+    $form['submitted']['where_are_you_going']['#suffix'] = "</div></div>";
+
+    $form['submitted']['what_are_you_interested_in_discovering']['#attributes']['class'][] = 'default-input';
+    $form['submitted']['what_are_you_interested_in_discovering']['#attributes']['placeholder'] = t('What are you interested in discovering...');
+    $form['submitted']['what_are_you_interested_in_discovering']['#prefix'] = "<div class='form-field-box'><div class='clearfix'><div class='col-sm-6'>";
+    $form['submitted']['what_are_you_interested_in_discovering']['#suffix'] = "</div></div>";
+
+
+    $form['actions']['submit']['#prefix'] = '<div class="sharing-btn">';
+    $form['actions']['submit']['#suffix'] = '</div>';
+    $form['actions']['submit']['#value'] = t('Send it!');
+    $form['actions']['submit']['#attributes']['class'][] = 'btn-orange';
+  }
+
+  /*
+   * Code for Feedback form - Starts here
+   */
+  if ($form_id == 'webform_client_form_54') {
+//    echo '<pre>';print_r($form);die;
+    $form['submitted']['feedback_title']['#markup'] = '<div class="feedback-title">Rate your experience</div>';
+    $form['submitted']['feedback_title']['#weight'] = -1;
+
+
+    $form['submitted']['feedback_desc']['#markup'] = '<div class="feedback-title2">How can we improve?</div>';
+    $form['submitted']['feedback_desc']['#weight'] = 3;
+
+    $form['submitted']['how_can_we_improve']['#title'] = '';
+    $form['submitted']['how_can_we_improve']['#prefix'] = '<div class="feedback-textbox">';
+    $form['submitted']['how_can_we_improve']['#suffix'] = '</div>';
+    $form['submitted']['how_can_we_improve']['#weight'] = 4;
+
+
+    $form['actions']['submit']['#prefix'] = '<div class="send-btn">';
+    $form['actions']['submit']['#suffix'] = '</div>';
+    $form['actions']['submit']['#value'] = t('Send');
+    $form['actions']['submit']['#attributes']['class'][] = 'btn-orange';
+  }
+  /*
+   * Code for Feedback form - Ends here
+   */
+
+
+  if ($form_id == 'mailchimp_lists_user_subscribe_form_newsletter') {
+
+    $form['mailchimp_lists']['#prefix'] = '<div class="newsletter-title">Our Newsletter</div><div class="newsletter-text">We send a newsletter each season. <span>No</span> spam, we promise.</div><div class="newsletter-form">';
+    $form['mailchimp_lists']['#suffix'] = '';
+    //unset($form['mailchimp_lists']['mailchimp_newsletter']['mergevars']['EMAIL']['#title']);
+    $form['mailchimp_lists']['mailchimp_newsletter']['mergevars']['EMAIL']['#attributes']['class'][] = 'default-input';
+    $form['mailchimp_lists']['mailchimp_newsletter']['mergevars']['EMAIL']['#attributes']['placeholder'] = t('Email address...');
+    $form['submit']['#attributes']['class'][] = 'black-btn';
+  }
+}
+
+/*
+ * COMMERCE LOGIN/REGISTER PAGE CODE -STARTS HERE
+ */
+
+function _my_profile() {
+  global $user, $base_url;
+  drupal_goto($base_url . '/user/' . $user->uid . '/edit');
+}
+
+function _your_interests() {
+  global $user, $base_url;
+  drupal_goto($base_url . '/user/' . $user->uid . '/edit/your_interest');
+}
+
+function _share_items_acc() {
+  //
+  return '1';
+}
+
+/* hook_form_user_profile_form_alter() function to hook user edit form Starts here */
+
+function local_fixer_custom_form_user_profile_form_alter(&$form, &$form_state, $form_id) {
+  global $base_url, $user;
+  if (arg(0) == 'my-profile') {
+    
+  }
+  if (arg(0) == 'your-interests') {
+    
+  }
+
+  if (arg(0) == "share-items-acc") {
+    
+  }
+}
+
+/**
+ * Custom submit handler
+ */
+function _items_custom_submit($form, &$form_state) {
+  global $base_url;
+  global $user;
+  drupal_goto($base_url . '/user/' . $user->uid . '/edit/share-items-acc');
+}
+
+function _post_status_custom_submit($form, &$form_state) {
+
+  global $user, $base_url;
+
+  $node = new stdClass;
+  $node->uid = $user->uid;
+  $node->type = 'status';
+  $node->status = 1;
+  $node->language = LANGUAGE_NONE;
+  $node->title = $user->name . ' status update';
+  $node->field_post_status['und'][0]['value'] = $form_state['values']['field_post_status']['und'][0]['value'];
+  node_save($node);
+  drupal_set_message($message = "Status posted successfully");
+  drupal_goto(current_path());
+}
+
+function _profile_main_custom_submit($form, &$form_state) {
+  global $user, $base_url;
+
+  $form_state['values']['profile_main']['field_food']['und'][0]['value'] = (isset($form_state['input']['food_rec'][0]) && $form_state['input']['food_rec'][0] != '') ? $form_state['input']['food_rec'][0] : '';
+  $form_state['values']['profile_main']['field_food']['und'][1]['value'] = (isset($form_state['input']['food_rec'][1]) && $form_state['input']['food_rec'][1] != '') ? $form_state['input']['food_rec'][1] : '';
+  $form_state['values']['profile_main']['field_food']['und'][2]['value'] = (isset($form_state['input']['food_rec'][2]) && $form_state['input']['food_rec'][2] != '') ? $form_state['input']['food_rec'][2] : '';
+
+  //echo '<pre>';print_r($form_state['values']);die;
+  $form_state['values']['profile_main']['field_drink']['und'][0]['value'] = (isset($form_state['input']['drink_rec'][0]) && $form_state['input']['drink_rec'][0] != '') ? $form_state['input']['drink_rec'][0] : '';
+  $form_state['values']['profile_main']['field_drink']['und'][1]['value'] = (isset($form_state['input']['drink_rec'][1]) && $form_state['input']['drink_rec'][1] != '') ? $form_state['input']['drink_rec'][1] : '';
+  $form_state['values']['profile_main']['field_drink']['und'][2]['value'] = (isset($form_state['input']['drink_rec'][2]) && $form_state['input']['drink_rec'][2] != '') ? $form_state['input']['drink_rec'][2] : '';
+
+  //echo '<pre>';print_r($form_state['values']);die;
+  $form_state['values']['profile_main']['field_activity']['und'][0]['value'] = (isset($form_state['input']['activity_rec'][0]) && $form_state['input']['activity_rec'][0] != '') ? $form_state['input']['activity_rec'][0] : '';
+  $form_state['values']['profile_main']['field_activity']['und'][1]['value'] = (isset($form_state['input']['activity_rec'][1]) && $form_state['input']['activity_rec'][1] != '') ? $form_state['input']['activity_rec'][1] : '';
+  $form_state['values']['profile_main']['field_activity']['und'][2]['value'] = (isset($form_state['input']['activity_rec'][2]) && $form_state['input']['activity_rec'][2] != '') ? $form_state['input']['activity_rec'][2] : '';
+
+  //echo '<pre>';print_r($form_state['values']);die;
+  $form_state['values']['profile_main']['field_sleep']['und'][0]['value'] = (isset($form_state['input']['sleep_rec'][0]) && $form_state['input']['sleep_rec'][0] != '') ? $form_state['input']['sleep_rec'][0] : '';
+  $form_state['values']['profile_main']['field_sleep']['und'][1]['value'] = (isset($form_state['input']['sleep_rec'][1]) && $form_state['input']['sleep_rec'][1] != '') ? $form_state['input']['sleep_rec'][1] : '';
+  $form_state['values']['profile_main']['field_sleep']['und'][2]['value'] = (isset($form_state['input']['sleep_rec'][2]) && $form_state['input']['sleep_rec'][2] != '') ? $form_state['input']['sleep_rec'][2] : '';
+
+  $form_state['redirect'] = url($base_url . '/user/' . $user->uid . '/edit/your_interest', array('absolute' => true));
+  //echo '<pre>';print_r($form_state);die;
+}
+
+function _profile_main_custom_validate($form, &$form_state) {
+  //echo '<pre>';print_r($form_state['values']['profile_main']['field_sleep']);die;
+  // Random example, if the title is 'test' throw an error
+  if ($form_state['input']['food_rec']['0'] == '') {
+    form_set_error('food_rec', 'Food field is required');
+  }
+  if ($form_state['input']['drink_rec']['0'] == '') {
+    form_set_error('drink_rec', 'Drink field is required');
+  }
+  if ($form_state['input']['activity_rec']['0'] == '') {
+    form_set_error('activity_rec', 'Activity field is required');
+  }
+  if ($form_state['input']['sleep_rec']['0'] == '') {
+    form_set_error('sleep_rec', 'Sleep field is required');
+  }
+}
+
+/**
+ * Custom submit handler
+ */
+function _profile_your_interests_custom_submit($form, &$form_state) {
+  global $user, $base_url;
+
+  $form_state['redirect'] = url($base_url . '/user/' . $user->uid . '/edit/share-items-acc', array('absolute' => true));
+}
+
+/* hook_form_user_profile_form_alter() function to hook user edit form Starts here */
+
+function taxonomy_get_nested_tree($terms = array(), $max_depth = NULL, $parent = 0, $parents_index = array(), $depth = 0) {
+  if (is_int($terms)) {
+    $terms = taxonomy_get_tree($terms);
+  }
+  foreach ($terms as $term) {
+    foreach ($term->parents as $term_parent) {
+      if ($term_parent == $parent) {
+        $return[$term->tid] = $term;
+      } else {
+        $parents_index[$term_parent][$term->tid] = $term;
+      }
+    }
+  }
+  foreach ($return as &$term) {
+    if (isset($parents_index[$term->tid]) && (is_null($max_depth) || $depth < $max_depth)) {
+      $term->children = taxonomy_get_nested_tree($parents_index[$term->tid], $max_depth, $term->tid, $parents_index, $depth + 1);
+    }
+  }
+  return $return;
+}
+
+/**
+ * Check Variable exists in DB.
+ */
+function drupalvariable_exists($name) {
+  global $conf;
+
+  return array_key_exists($name, $conf);
+}
+
+/**
+ * autocomplete helper
+ * $string = string for search
+ */
+function _cities_autocomplete($string) {
+  $matches = array();
+  $result = db_select('taxonomy_term_data', 'c')
+    ->fields('c', array('name'))
+    ->condition('vid', 5, '=')
+    ->condition('name', '%' . db_like($string) . '%', 'LIKE')
+    ->execute();
+  // save the query to matches
+  foreach ($result as $row) {
+    $matches[$row->name] = check_plain($row->name);
+  }
+  // Return the result to the form in json
+  drupal_json_output($matches);
+}
+
+/**
+ * autocomplete helper
+ * $string = string for search
+ */
+function save_review($nid) {
+  //die('sa');
+  if (!user_is_logged_in()) {
+    drupal_set_message("Login required", $type = "error");
+  } else {
+    global $user;
+    global $base_url;
+
+    $review_saved = 0;
+    $node = node_load($nid);
+    //echo '<pre>';print_r($node);die;
+    if ($node->uid == $user->uid) {
+      drupal_set_message("usser cannot save their own review to their profile", $type = 'error');
+      drupal_goto($base_url . '/node/' . $nid);
+    } else {
+      $field_review_users_saved_review_field = field_get_items("node", $node, "field_review_users_saved_review");
+      if (!empty($field_review_users_saved_review_field)) {
+        foreach ($field_review_users_saved_review_field as $key => $value) {
+
+          if ($value['target_id'] == $user->uid) {
+            $review_saved = 1;
+            break;
+          }
+        }
+      }
+      if ($review_saved == 0) {
+        $node->field_review_users_saved_review['und'][]['target_id'] = $user->uid;
+        node_save($node);
+        //drupal_set_message("Review saved");
+        $_SESSION['review_message'] = "Review saved to your profile";
+        drupal_goto($base_url . '/node/' . $nid);
+      } else {
+        drupal_set_message("Review already saved", $type = 'error');
+        //drupal_add_js('jQuery(document).ready(function () { jQuery(\'.save_review\').click(); });', 'inline');
+        drupal_goto($base_url . '/saved-reviews/' . $user->uid);
+      }
+    }
+  }
+}
+
+function remove_review($nid) {
+  if (!user_is_logged_in()) {
+    drupal_set_message("Login required", $type = "error");
+  } else {
+    global $user;
+    global $base_url;
+
+    $review_saved = 0;
+    $node = node_load($nid);
+    //echo '<pre>';print_r($node);die;
+    if ($node->uid == $user->uid) {
+      drupal_set_message("usser cannot remove their own review from their profile", $type = 'error');
+      drupal_goto($base_url . '/node/' . $nid);
+    } else {
+      $field_review_users_saved_review_field = field_get_items("node", $node, "field_review_users_saved_review");
+
+      if (!empty($field_review_users_saved_review_field)) {
+        foreach ($field_review_users_saved_review_field as $key => $value) {
+
+          if ($value['target_id'] == $user->uid) {
+            $remove_review_key = $key;
+            $review_saved = 1;
+            break;
+          }
+        }
+      }
+
+      if ($review_saved == 1) {
+        unset($node->field_review_users_saved_review['und'][$remove_review_key]);
+        //echo '<pre>';print_r($node->field_review_users_saved_review);die;
+        node_save($node);
+        //drupal_set_message("Review saved");
+        $_SESSION['review_message'] = "Review removed from your profile";
+        drupal_goto($base_url . '/saved-reviews/' . $user->uid);
+      } else {
+        drupal_set_message("Review already removed", $type = 'error');
+        //drupal_add_js('jQuery(document).ready(function () { jQuery(\'.save_review\').click(); });', 'inline');
+        drupal_goto($base_url . '/node/' . $nid);
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function local_fixer_custom_block_info() {
+  $blocks = array();
+  $blocks['static_home_page_content'] = array(
+    'info' => t('Static home page content block'),
+  );
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function local_fixer_custom_block_view($delta = '') {
+  $block = array();
+
+  switch ($delta) {
+    case 'static_home_page_content' :
+      $block['content'] = static_home_page_content_view();
+      break;
+  }
+
+  return $block;
+}
+
+/**
+ * Custom function to assemble renderable array for block content.
+ * Returns a renderable array with the block content.
+ * @return
+ * returns a renderable array of block content.
+ */
+function static_home_page_content_view() {
+  global $base_url;
+  $block = array();
+
+// Capture WYSIWYG text from the variable
+  $text = '<div class="content-logo text-center">
+      <a href="/">
+        <img src="' . drupal_get_path('theme', 'local_fixer') . '/images/page-logo.png" class="img-responsive">
+      </a>
+    </div>
+    <div class="content-banner-text text-center">
+      <div class="text-img">
+        <img src="' . drupal_get_path('theme', 'local_fixer') . '/images/text-tagline.png" class="img-responsive">
+      </div>
+      <div class="tagline-subtext">GLOBAL TRAVELLER | LOCAL EXPERIENCE</div>
+    </div>
+    <div class="search-box text-center">
+      <div class="search-title">Search for likeminded fixers</div>
+        <div class="search-form">
+        <div class="search-field clearfix">';
+  $_search_review_block = module_invoke('views', 'block_view', '-exp-search_reviews-page');
+  $text.= render($_search_review_block['content']);
+
+  $text.='
+        </div>
+      </div>
+    </div>
+
+<div class="search-text-box clearfix">
+  <div class="search-text-left">Only one field required.  Location not available? <a href="' . $base_url . '/fixer-locations">Request it now.</a></div>
+  <div class="search-text-right"><a href="' . $base_url . '/search-reviews">+ Advanced Search</a></div>
+</div>
+
+
+<div class="country-box text-center">
+  <div class="contry-title">Our community is growing and is currently available in the following cities</div>
+  <div class="country-list">';
+
+  $tree = taxonomy_get_nested_tree(5);
+  $parent_count = 1;
+  $return = '';
+
+  //echo '<pre>';print_r($tree);die;
+  foreach ($tree as $parent_term) {
+    if (!(isset($parent_term->children))) {
+      $return .='<div class = "dropdown">
+  <button class = "btn dropdown-toggle country-name" type = "button" id = "dropdownMenu1" data-toggle = "dropdown">
+  ' . $parent_term->name . '
+  <span class = "caret"></span>
+  </button>
+  </div>';
+    } else {
+      $return .= '<div class = "dropdown">
+  <button class = "btn dropdown-toggle country-name" type = "button" id = "dropdownMenu' . $parent_count . '" data-toggle = "dropdown">
+  ' . $parent_term->name . '
+  <span class = "caret"></span>
+  </button>
+  <ul class = "dropdown-menu" role = "menu" aria-labelledby = "dropdownMenu' . $parent_count . '">';
+      if (isset($parent_term->children)) {
+        foreach ($parent_term->children as $children) {
+          $return .='<li role = "presentation"><a role = "menuitem" tabindex = "-1" href = "' . $base_url . '/search-reviews?field_review_location_locality=' . $children->name . '">' . $children->name . '</a></li>';
+        }
+      }
+      $return .='</ul></div> | ';
+      $parent_count++;
+    }
+  }
+
+  $text.= $return;
+
+  $text .='<div class="dropdown">
+            <button class="btn dropdown-toggle country-name" type="button" onclick="window.location = ' . $base_url . '/fixer-locations" data-toggle="dropdown">
+              More... 
+            </button>
+            </div>
+          </div>
+        </div>';
+
+// Block output in HTML with div wrapper
+  $block = array(
+    'message' => array(
+      '#type' => 'markup',
+      '#markup' => $text,
+      '#suffix' => '
+',
+    ),
+  );
+
+  return $block;
+}
+
+/**
+ * Implements hook_user_logout
+ *
+ */
+function local_fixer_custom_user_logout($account) {
+  //die('sad');
+//drupal_set_message(t('Thank you for being part of the fixer community. See you soon again'));
+//drupal_goto();
+  session_destroy();
+  $_SESSION['logout_message'] = t('Thank you for being part of the fixer community. See you again soon.');
+  drupal_goto();
+}

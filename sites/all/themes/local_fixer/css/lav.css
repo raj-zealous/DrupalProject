@@ -1,0 +1,100 @@
+/* Lav CSS*/
+.profile-scroll{ height:600px; position:relative; }
+
+.profile-tab-heading{ margin-bottom:20px;}
+.profile-tab-heading h2{ float:left; font-size:28px; color:#333;font-family: 'Dense-Regular'; text-transform:uppercase; margin:0;}
+.profile-tab-heading a{ float:right; background:url(../images/edit-icon.png) no-repeat left 8px; padding:8px 0 2px 20px; font-size:12px; color:#f17315; font-weight:700; line-height:14px; text-transform:uppercase;}
+.white-bg{ background:#fff; border:1px solid #e2e2e2;}
+.profile-rgt-box{ padding:25px 20px 0 0;}
+.profile-cat-listing{ border:2px solid #fff; padding:10px; margin-bottom:10px;}
+.profile-cat-listing:last-child{ margin-bottom:0;}
+.cat-icon{ float:left; margin-right:15px;}
+.cat-text{ float:left; max-width:80%;}
+.edit-cat{ float:right;}
+.edit-cat a.orange{ background:url(../images/pencil-icon.png) no-repeat 10px center #f17315; padding:10px; font-size:11px; font-weight:600; color:#fff; text-transform:uppercase; padding-left:23px; text-align:center; max-width:85px; display:block;}
+.edit-cat a.gray{ background:url(../images/pencil-icon.png) no-repeat 10px center #282828; padding:10px; font-size:11px; font-weight:600; color:#fff; text-transform:uppercase;padding-left:23px; text-align:center; max-width:85px; display:block;}
+.profile-info-text{ margin:30px 0 20px;}
+.profile-info-text h2{ font-size:28px; color:#333;font-family: 'Dense-Regular'; text-transform:uppercase; margin:0 0 12px;}
+.profile-info-text p{ color:#333333; font-size:13px; line-height:22px; padding-bottom:20px;word-wrap: break-word;}
+.update-box{ background:#ededed; padding:16px; margin-bottom:20px;}
+.user-pic{ float:left; width:60px; margin-right:20px;}
+.user-pic a, .user-pic a img{ display:block; border-radius:60px;}
+.update-text{ float:left; padding-top:10px; max-width:85%; font-size:12px; line-height:20px; color:#000; position:relative;}
+.update-text a{ color:#f15f15; text-decoration:underline; font-weight:700;}
+.update-text a:hover{ text-decoration:none;}
+.update-text span{ position:absolute; font-weight:600; font-size:10px; color:#8b8b8b; right:0; top:-10px;}
+
+.profile-leftside{ margin-left:-15px; background:#2e2e2e;}
+.profile-leftnav { background:#3e3e3e; width:28%; float:left;}
+.profile-leftnav ul { padding:0px; margin:0px;}
+.profile-leftnav ul li { display:block; border-bottom:1px solid #575757; }
+.profile-leftnav ul li a { display:block; text-align:center; padding:15px 0;}
+.profile-leftnav ul li a:hover{ background:#f17c15; box-shadow:0px 5px 5px rgba(0,0,0,0.75);}
+.profile-leftnav ul li.active a{ background:#f17c15; box-shadow:0px 5px 5px rgba(0,0,0,0.75);}
+
+.user-profile-box { background:#2e2e2e; padding:20px; float:left; width:72%; border-left:3px solid #000; box-shadow: -4px 0 4px rgba(0,0,0,0.2);}
+.profile-user-detail{ text-align:center; padding-bottom:25px; border-bottom:1px solid #575757; margin-bottom:22px;}
+.profile-user-detail h2{ color:#ff7d17; font-size:40px; line-height:42px;font-family: 'Dense-Regular'; text-transform:uppercase; margin:3px 0 2px;}
+.about-user{ display:inline-block; font-size:24px; line-height:26px; color:#fff;font-family: 'Dense-Regular';}
+.about-user span{ float:left;}
+.about-user span.user-age{ background:url(../images/age-icon.png) no-repeat left 2px; margin-left:10px; padding-left:20px; font-size:30px;}
+.profile-user-pic{ text-align:center;}
+.profile-user-pic a{ display:block; width:175px; height:175px; border:1px solid #fff; margin:0 auto; border-radius:175px;}
+.profile-user-pic a img{ display:block; border-radius:175px;}
+.rating-no h3{ color:#fff; font-size:30px; line-height:36px;font-family: 'Dense-Regular'; text-transform:uppercase; margin-bottom:0;}
+.rating-no h3 span{ color:#ff7d17;}
+.rating-no p{ font-size:11px; line-height:18px; font-weight:700; color:#fff; margin-bottom:22px;}
+.send-msg{ border:1px solid #fff; border-radius:20px; box-shadow:2px 2px 2px rgba(0,0,0,.15); height:47px; padding:0 35px;
+background: #ff9933; /* Old browsers */
+background: -moz-linear-gradient(top, #ff9933 0%, #ff6600 100%); /* FF3.6+ */
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#ff9933), color-stop(100%,#ff6600)); /* Chrome,Safari4+ */
+background: -webkit-linear-gradient(top, #ff9933 0%,#ff6600 100%); /* Chrome10+,Safari5.1+ */
+background: -o-linear-gradient(top, #ff9933 0%,#ff6600 100%); /* Opera 11.10+ */
+background: -ms-linear-gradient(top, #ff9933 0%,#ff6600 100%); /* IE10+ */
+background: linear-gradient(to bottom, #ff9933 0%,#ff6600 100%); /* W3C */
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ff9933', endColorstr='#ff6600',GradientType=0 ); /* IE6-9 */}
+.send-msg span{ background:url(../images/send-msg-icon.png) no-repeat left center; display:block; padding-left:35px; font-size:18px; color:#fff; font-weight:700;}
+.user-rating-box{ text-align:center; padding-bottom:22px; border-bottom:1px solid #575757; margin-bottom:20px;}
+.user-interest-box{ text-align:center; padding-bottom:22px; border-bottom:1px solid #575757; margin-bottom:20px;}
+.user-interest-box h3{ color:#fff; font-size:24px; line-height:36px;font-family: 'Dense-Regular'; text-transform:uppercase; text-align:left;}
+.user-interest-box ul li{ float:left; margin:0 5px 5px 0;}
+.user-interest-box ul li a{ display:block; float:left; background:#fff; border-radius:3px; font-size:13px; color:#000; line-height:25px; padding:0 10px;}
+.user-interest-box ul li a:hover{ background:#f15f15;}
+.share-profile-box{ text-align:center;}
+.share-profile-box h3{ color:#fff; font-size:24px; line-height:36px;font-family: 'Dense-Regular'; text-transform:uppercase; margin-top:0;}
+.share-profile-box ul{ display:inline-block;}
+.share-profile-box ul li{ float:left; margin-right:7px;}
+.share-profile-box ul li a.pf-twitter{ display:block; width:27px; height:27px; background:url(../images/share-profile-icons.png) no-repeat 0 0;}
+.share-profile-box ul li a.pf-twitter:hover{ background-position:0 -28px;}
+.share-profile-box ul li a.pf-fb{ display:block; width:27px; height:27px; background:url(../images/share-profile-icons.png) no-repeat -33px 0;}
+.share-profile-box ul li a.pf-fb:hover{ background-position:-33px -28px;}
+.share-profile-box ul li a.pf-gplus{ display:block; width:27px; height:27px; background:url(../images/share-profile-icons.png) no-repeat -67px 0;}
+.share-profile-box ul li a.pf-gplus:hover{ background-position:-67px -28px;}
+.share-profile-box ul li a.pf-mail{ display:block; width:27px; height:27px; background:url(../images/share-profile-icons.png) no-repeat -101px 0;}
+.share-profile-box ul li a.pf-mail:hover{ background-position:-101px -28px;}
+
+
+.accommodation-info-box{ border:1px solid #c8c8c8; padding:10px; background:#ededed;}
+.accomodation-pic{ float:left; width:43%;}
+.accommodation-text{ float:right; width:52%;}
+.accommodation-text h3{ font-size:16px; line-height:22px; color:#ff7d17; font-weight:600; border-bottom:1px solid #d4d4d4; margin:0; padding:3px 0 10px;}
+.specification-box{ border-bottom:1px solid #d4d4d4;}
+.specification-box label{ float:left; width:30%; text-transform:uppercase; line-height:30px; font-size:14px; font-weight:600; color:#333; margin:0;}
+.specification-box p{ float:right; width:65%; line-height:20px; padding:5px 0; font-size:14px; color:#333;}
+.accommodation-desc{ margin:20px 0 0; padding:0 10px;}
+.accommodation-desc h3{ font-size:13px; font-weight:600; color:#333; margin:0 0 5px; text-transform:uppercase;}
+.accommodation-desc p{ font-size:13px; color:#333; line-height:20px;}
+.accommodation-desc a{ float:right; margin:0 -20px -10px 0; border:0; border-radius:3px; background:#333333; padding:0 20px; font-size:12px; font-weight:600; text-transform:uppercase; color:#fff; line-height:32px;}
+.accommodation-desc a span{ background:url(../images/connect-icon.png) no-repeat left center; padding-left:25px;}
+
+
+
+    #owl-demo .item img{
+    display: block;
+    width: 100%;
+    height: auto;
+    }
+.owl-buttons{ position:absolute; width:100%; bottom:10px;}
+.owl-prev{ border:1px solid #fff; width:30px; height:30px; text-align:center; right:60px; position:absolute; bottom:0px; text-indent:-9999px; background:url(../images/left-arr.png) no-repeat center center rgba(0,0,0,.85);}
+.owl-next{ border:1px solid #fff; width:30px; height:30px; text-align:center; right:10px; position:absolute; bottom:0px; text-indent:-9999px;
+background:url(../images/rgt-arr.png) no-repeat center center rgba(0,0,0,.85);}

@@ -1,0 +1,7 @@
+name = FIXER DP Custom module
+description = Generic Module for Customization, form alter etc.,
+core = 7.x
+package = FIXER DP  Custom module
+
+version = "7.x-1.0"
+core = "7.x"

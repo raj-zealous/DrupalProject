@@ -1,0 +1,321 @@
+<?php
+
+/**
+ * Implements hook_form_alter().
+ * To disable formating tips from node forms
+ */
+function fixer_custom_form_alter(&$form, &$form_state, $form_id) {
+
+    if ($form_id == 'newsletter_subscribe_form') {
+        $form['#prefix'] = '<div class="newsletter-box">
+	<div class="container">
+    	<div class="row clearfix">
+        	<div class="col-sm-12 clearfix">
+            	<div class="newsletter-title">Our Newsletter</div>
+                <div class="newsletter-text">We send a newsletter each season. <span>No</span> spam, we <i> promise </i>.</div>                
+                <div class="newsletter-form">';
+        $form['actions']['email']['#attributes']['placeholder'] = t('Email address...');
+        $form['email']['#attributes']['class'][] = 'default-input uniform-input text';
+        $form['newsletter-submit']['#attributes']['class'][] = 'black-btn';
+
+        $form['#suffix'] = '</div>
+            </div>
+        </div>
+    </div>	
+</div>';
+    }
+
+    //pa($form_id);
+    //pa($form['details']['nid']['#value']);
+    if ($form_id == 'webform_client_form_10' && $form['details']['nid']['#value'] == 10) {
+
+        //$form['submitbutton']['#value'] = t('Send Message');
+        //$form['actions']['first_name']['#attributes']['placeholder'] = t('First Name');
+        $form['submitted']['first_name']['#attributes'] = array('placeholder' => 'First Name');
+        $form['submitted']['last_name']['#attributes'] = array('placeholder' => 'Last Name');
+        $form['submitted']['e_mail_address']['#attributes'] = array('placeholder' => 'E-mail Address');
+        $form['submitted']['contact_no']['#attributes'] = array('placeholder' => 'Contact No.');
+        $form['actions']['submit']['#attributes']['class'][] = 'btn-orange';
+        $form['actions']['submit']['#value'] = t('Send Message');
+    }
+
+    if ($form_id == 'feedback_form') {
+        // pa($form);
+        $form['feedback_msg']['#prefix'] = '<div class="feedback-title2">How can we improve?</div><div class="feedback-textbox">';
+        $form['feedback_msg']['#attributes'] = array('placeholder' => 'Write something...');
+        $form['feedback_msg']['#suffix'] = '</div>';
+
+        $form['submit']['#prefix'] = '<div class="send-btn">';
+        //$form['submit']['#prefix'] =  '';
+        $form['submit']['#attributes']['class'][] = 'btn-orange';
+        $form['submit']['#value'] = t('Send');
+        $form['submit']['#suffix'] = '</div>';
+    }
+
+    if ($form_id == 'comment_node_review_form') {
+        //pa($form_state);
+        unset($form['subject']);
+        unset($form['author']);
+        $form['preview'] = null;
+        $form['comment_body']['#prefix'] = '<div class="form-field-box">';
+        $form['comment_body']['#suffix'] = '</div>';
+        $form['actions']['submit']['#attributes']['class'][] = 'btn-orange';
+        $form['actions']['submit']['#prefix'] = '<div class="continue">';
+        $form['actions']['submit']['#suffix'] = '</div>';
+        $form['actions']['submit']['#value'] = t('Leave a comment');
+    }
+}
+
+/**
+ * Implements hook_block_info().
+ *
+ * This function tells drupal about our block.
+ *
+ * For more information on this function, see:
+ * http://api.drupal.org/api/drupal/modules block block.api.php/function/hook_block_info/7
+ */
+function fixer_custom_block_info() {
+    // Create an array that will hold our blocks
+    $blocks = array();
+
+    // Create a key in our $blocks array that
+    // defines our block. Note that the key in
+    // this array can be anything. For this
+    // tutorial, we use 'tellafriend_form'.
+    $blocks['feedback_form'] = array(
+        // 'info' is what you will see when viewing the blocks admin page.
+        // Note that we use the t() (translate) function which lets drupal
+        // translate any text passed in if needed.
+        'info' => t('Feedback form'),
+        // 'cache' how this block will be cached
+        'cache' => DRUPAL_CACHE_GLOBAL,
+    );
+
+    // Note, if you wanted to define multiple blocks, you
+    // could simply define more blocks just like above.
+    // Finally, we return the $blocks array.
+    return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ *
+ * This function tells drupal how to define our block when viewed.
+ *
+ * For more information on this function, see:
+ * http://api.drupal.org/api/drupal/modules block block.api.php/function/hook_block_view/7
+ */
+function fixer_custom_block_view($delta = '') {
+    // Create an array that will be returned as our block
+    $block = array();
+
+    // Since hook_block_view is called for every block,
+    // Drupal passes in $delta (the key of the blocks defined
+    // in hook_block_info. In our case, we're checking for
+    // $delta to be 'feedback_form'.
+    switch ($delta) {
+        case 'feedback_form':
+            // Since this $delta matches our case, we'll define
+            // the subject and contents.
+            // 'subject' can be blank ('') or anything you wish to define.
+            $block['subject'] = t('Feedback form');
+
+            // 'content' are just that, the contents of the block.
+            // In our case, we will be showing a form.
+            // We use drupal_get_form() to return a drupal-built form.
+            // Note that the parameter passed to drupal_get_form is the name
+            // of the function we will build below to define our form.
+            // This can be any function name we define below.
+            $block['content'] = drupal_get_form('feedback_form');
+            break;
+    }
+
+    // Finally, we return the $block array.
+    return $block;
+}
+
+/**
+ * Define the form to be returned.
+ *
+ * Note that drupal passes in two parameters,
+ * $form - which holds all of the elements of the form
+ * $form_state - a special array of settings & values needed by Drupal
+ */
+function feedback_form($form, &$form_state) {
+    // Now the fun begins. For this simple example,
+    // we will only provide two form elements.
+    // 1. an input for the friend's email address
+    // 2. a submit button
+    // You can add as much or as little to this form as
+    // needed. See the forms api for all possible elements.
+
+    $form['feedback_msg'] = array(
+        // #type tells drupal what kind of element to build
+        '#type' => 'textarea',
+        // we want this field to be required
+        '#required' => TRUE,
+        // The "label" for this field
+        '#title' => t("Feedback message"),
+        '#rows' => 3,
+            // Optional description
+            //'#description' => t('Must be a valid email address'),
+    );
+
+    $form['submit'] = array(
+        '#type' => 'submit',
+        // #value is the text to display inside the button
+        '#value' => t('Submit'),
+    );
+
+    return $form;
+}
+
+/*
+ * Define a validation function that drupal will
+ * automatically call when the submit button is pressed.
+ *
+ * For this example, I will use the valid_email_address()
+ * function to verify that the email address looks
+ * proper. If it's not, we'll use form_set_error()
+ * function to tell drupal we didn't pass validation.
+ */
+
+function feedback_form_validate($form, &$form_state) {
+    // Drupal stows away all of the form elements into
+    // $form_state['values']. We find our 'friends_email'
+    // element and assign it to a variable for easy
+    // reference.
+    $email = $form_state['values']['feedback_msg'];
+
+    // If it's not a valid email, set an error.
+    if (empty($email)) {
+        // form_set_error() tells drupal that it should not proceed.
+        // The first parameter is the form element that didn't pass
+        // validation. The second is the message to tell the user.
+        form_set_error('feedback_msg', t('Please enter message'));
+    }
+}
+
+/*
+ * Define a submit funciton that drupal will
+ * automatically call when submit is pressed (and all validators pass)
+ */
+
+function feedback_form_submit($form, &$form_state) {
+    // pa(node_load(11));
+
+    $node = new stdClass(); // Create a new node object
+    $node->type = "feedback"; // Or page, or whatever content type you like
+    node_object_prepare($node); // Set some default values
+// If you update an existing node instead of creating a new one,
+// comment out the three lines above and uncomment the following:
+// $node = node_load($nid); // ...where $nid is the node id
+
+    $node->title = "Feedback message";
+    $node->language = LANGUAGE_NONE; // Or e.g. 'en' if locale is enabled
+
+    $node->uid = 1; // UID of the author of the node; or use $node->name
+
+    $node->field_feedback_rating[$node->language][0]['value'] = 5;
+    $node->body[$node->language][0]['value'] = $form_state['values']['feedback_msg'];
+    $node->body[$node->language][0]['summary'] = text_summary($form_state['values']['feedback_msg']);
+    $node->body[$node->language][0]['format'] = 'filtered_html';
+    node_save($node);
+
+    // Get the email value again
+    //$email = $form_state['values']['friends_email'];
+    // Now we call drupal_mail() to send a message to this person.
+    // Note that this basically tells drupal to call tellafriend_mail().
+    //$message = drupal_mail('feedback_form', 'notify', $email, language_default());
+    // Check the message results and let the user know if php was able to sent the email.
+    //if (!empty($message['result'])) {
+    drupal_set_message(t('Thanks for sharing your feedback!'));
+//    } else {
+//        drupal_set_message(t('There was a problem sending your message'), 'error');
+//    }
+}
+
+/**
+ * Implements hook_mail().
+ */
+//function feedback_form_mail($key, &$message, $params) {
+//    global $base_url;
+//    $message['subject'] = t('Your friend thought you might like this site');
+//    $message['body'][] = t("Hello,\nYour friend thought you might like this site. Please click the link below to visit.\n\n!link", array('!link' => $base_url));
+//}
+
+function count_percentage($nid = "") {
+    //$message_type = 'message';    
+    global $user;
+
+    if ($nid == '') {
+        $nid = arg(1);
+    }
+
+    $get_results = db_query("SELECT * from {votingapi_vote}
+               WHERE entity_id = " . $nid . " ")->fetchAll();
+    return $get_results;
+}
+
+function count_user_percentage($uid) {
+    //$message_type = 'message';    
+    global $user;
+    $get_results = db_query("SELECT * from {node}
+               WHERE type = 'review' AND uid = '" . $uid . "' ")->fetchAll();
+
+    // pa($get_results);
+
+    if (isset($get_results) && !empty($get_results)) {
+        foreach ($get_results as $k => $v) {
+            if ($v->nid != '') {
+                $records = count_percentage($v->nid);
+                //pa($records);
+                if (!empty($records)) {
+                    $review_nodes[] = $records;
+                }
+            }
+        }
+    }
+    $total_reviews = count($review_nodes);
+
+    if (isset($review_nodes) && !empty($review_nodes)) {
+
+        $percentage = 0;
+        $i = 0;
+        $vote_count = "";
+        foreach ($review_nodes as $k => $v) {
+            $vote_count = count($v);
+            $cnt = 0;
+            $arr_like = array();
+            foreach ($v as $a => $b) {
+                if ($b->tag == 'like') {
+                    $arr_like['like'][$cnt] = 1;
+                } else {
+                    $arr_like['dislike'][$cnt] = 1;
+                }
+                $cnt++;
+            }
+            $like_cnt = count($arr_like['like']);
+            $unlike_cnt = count($arr_like['dislike']);
+            $all_node_percentage[] = ceil(( $like_cnt * 100 ) / $vote_count);
+            $i++;
+        }
+        $all_node_percentage_sum = array_sum($all_node_percentage);
+    }
+    if ($total_reviews > 0) {
+        $user_all_percentage = ceil($all_node_percentage_sum / $total_reviews);
+    }
+    return $user_all_percentage;
+}
+
+function pa($a, $b = "") {
+    echo "<pre>";
+    print_r($a);
+    if ($b == 1) {
+        echo "</pre>";
+    } else {
+        exit;
+    }
+}
+
+?>

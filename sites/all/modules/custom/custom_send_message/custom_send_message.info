@@ -1,0 +1,7 @@
+name = Custom Send message friend module
+description = To send messages to friend and all,
+core = 7.x
+package = Custom Send message friend module
+
+version = "7.x-1.0"
+core = "7.x"

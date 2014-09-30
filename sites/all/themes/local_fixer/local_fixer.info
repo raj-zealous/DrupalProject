@@ -1,0 +1,105 @@
+name = Local Fixer Bootstrap Theme
+description = A Bootstrap Sub-theme craeted for LNG Global.
+core = 7.x
+base theme = bootstrap
+
+
+;;;;;;;;;;;;;;;;;;;;;
+;; Regions
+;;;;;;;;;;;;;;;;;;;;;
+
+regions[navigation]         = 'Navigation'
+regions[header]             = 'Top Bar'
+regions[highlighted]        = 'Highlighted'
+regions[help]               = 'Help'
+regions[content]            = 'Content'
+regions[sidebar_first]      = 'Primary'
+regions[sidebar_second]     = 'Secondary'
+regions[footer]             = 'Footer'
+regions[content_top_bar]    = 'Content Top Bar'
+regions[page_top]           = 'Page top'
+regions[page_bottom]        = 'Page bottom'
+regions[home_banner]        = 'Home Page Banner'
+regions[content_bottom_bar] = 'Content Bottom Bar'
+regions[newsletter_bar]     = 'Newsletter Bar'
+regions[copyrights]         = 'Copyrights'
+regions[social_links]       = 'Social Links'
+regions[feedback_form]      = 'Feedback form'
+regions[login_user]         = 'User Login Block'
+
+
+
+;;;;;;;;;;;;;;;;;;;;;
+;; Stylesheets
+;;;;;;;;;;;;;;;;;;;;;
+
+stylesheets[all][] = css/bootstrap.css
+stylesheets[all][] = css/uniform.default.css
+stylesheets[all][] = css/easy-responsive-tabs.css
+stylesheets[all][] = css/owl.carousel.css
+stylesheets[all][] = css/stylesheet.css
+stylesheets[all][] = css/chosen.css
+stylesheets[all][] = css/lav.css
+stylesheets[all][] = css/developer.css
+stylesheets[all][] = css/media.css
+
+
+
+scripts[] = js/bootstrap.js
+scripts[] = js/chosen.jquery.js
+scripts[] = js/jquery.uniform.js
+scripts[] = js/addInput.js
+scripts[] = js/maxlength.js
+scripts[] = js/jquery.nicescroll.js
+scripts[] = js/easyResponsiveTabs.js
+scripts[] = js/owl.carousel.js
+scripts[] = js/scrollspy.js
+scripts[] = js/custom.js
+;scripts[] = js/custom_jquery.js
+;scripts[] = js/toggle-script.js
+
+; For information on choosing the desired method, please read the Drupal
+; Bootstrap sub-theme "how-to" documentation:
+; https://drupal.org/node/1978010
+
+; ;----------------------------------
+; ; METHOD 1: Bootstrap Source Files
+; ;----------------------------------
+; 
+; ;;;;;;;;;;;;;;;;;;;;;
+; ;; Scripts
+; ;;;;;;;;;;;;;;;;;;;;;
+; 
+  
+; scripts[] = 'js/jquery.easing.js'
+; scripts[] = 'js/jquery.nouislider.min.js'
+; scripts[] = 'js/jquery.inview.min.js'
+; scripts[] = 'js/multicolumn.js'
+; scripts[] = 'js/bootstrap-dialog.min.js'
+; scripts[] = 'js/bootstrap-select.min.js'
+; scripts[] = 'js/icheck.min.js'
+; scripts[] = 'js/bootstrap-switch.js'
+; scripts[] = 'bootstrap/js/affix.js'
+; scripts[] = 'bootstrap/js/alert.js'
+; scripts[] = 'bootstrap/js/button.js'
+; scripts[] = 'bootstrap/js/carousel.js'
+; scripts[] = 'bootstrap/js/collapse.js'
+; scripts[] = 'bootstrap/js/dropdown.js'
+; scripts[] = 'bootstrap/js/modal.js'
+; scripts[] = 'bootstrap/js/popover.js'
+; scripts[] = 'bootstrap/js/scrollspy.js'
+; scripts[] = 'bootstrap/js/tab.js'
+; scripts[] = 'bootstrap/js/transition.js'
+scripts[] = 'js/custom.js'
+;
+; ; Disable BootstrapCDN if using Bootstrap source files in your sub-theme.
+; settings[bootstrap_cdn] = ''
+
+
+; ;-------------------------
+; ; METHOD 2: Bootstrap CDN
+; ;-------------------------
+;
+; Method 2 uses BootstrapCDN, the only thing you might need to provide here
+; is overrides to Bootstrap theme settings. Copy them here from the base theme
+; to override.

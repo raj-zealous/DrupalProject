@@ -1,0 +1,580 @@
+<?php
+
+/**
+ * Implements hook_form_alter().
+ * To disable formating tips from node forms
+ */
+function custom_send_message_menu() {
+    $items['send_message_to_friend/%'] = array(
+        'page callback' => 'send_message_to_friend',
+        'type' => MENU_CALLBACK,
+        'page arguments' => array(1),
+        'access callback' => TRUE,
+    );
+    $items['send_message_to_friend/view/%/%'] = array(
+        'page callback' => 'message_view',
+        'type' => MENU_CALLBACK,
+        'page arguments' => array(1),
+        'access callback' => TRUE,
+    );
+    $items['user_search/autocomplete'] = array(
+        'page callback' => 'fetch_user_list',
+        'access arguments' => array('Mail user search'),
+        'type' => MENU_CALLBACK
+    );
+    return $items;
+}
+
+/**
+ * @file
+ * This file contains general hook functions
+ */
+function custom_send_message_permission() {
+    return array(
+        'Mail user search' => array(
+            'title' => t('Access Mail user search'),
+            'description' => t('Access Mail user search'),
+        ),
+    );
+}
+
+function send_message_to_friend() {
+
+
+    global $base_url, $user;
+    //global $user;
+    if (isset($user->uid) && $user->uid == 0) {
+        drupal_goto($base_url);
+        drupal_set_message(t('Login is required!'), 'error');
+    }
+
+    $arg = arg();
+    //pa($arg);
+    $main_profile = profile2_load_by_user($user->uid, "main");
+    //$interest_profile = profile2_load_by_user($user->uid, "your_interest");
+    $status = 0;
+
+    $message_type = 'message';
+    $unread_msg_inbox = count(message_type_unread_count($message_type));
+    $archive_type = 'archive';
+    $archive_msg_inbox = count(message_type_unread_count($archive_type));
+    $spam_type = 'spam';
+    $spam_msg_inbox = count(message_type_unread_count($spam_type));
+
+    //$get_all_msg = inbox_message($status);
+    $status = 0;
+    $type = 'message';
+    $inbox_class = 'active';
+    $archive_class = '';
+    $spam_class = '';
+    if (arg(2) == 'archive') {
+        $type = 'archive';
+        $archive_class = "active";
+        $inbox_class = '';
+        $spam_class = '';
+    }
+    if (arg(2) == 'spam') {
+        $type = 'spam';
+        $archive_class = '';
+        $inbox_class = '';
+        $spam_class = 'active';
+    }
+    // pa($type);
+
+
+    if (isset($_POST['search']) && $_POST['search'] != '') {
+        $u_search = db_query("SELECT uid FROM users n 
+                WHERE name LIKE '%" . $_POST['search'] . "%' OR  mail LIKE '%" . $_POST['search'] . "%'")->fetchAll();
+        $uids = "";
+        foreach ($u_search as $k => $v) {
+            $uids .= $v->uid . ',';
+        }
+        $uids = trim($uids, ',');
+
+        if ($uids != '') {
+            $select_msg_nodes = db_query("SELECT nid FROM node n 
+                WHERE uid IN  ( " . $uids . " ) AND type = 'message' ")->fetchAll();
+
+            foreach ($select_msg_nodes as $k => $v) {
+                $nids .= $v->nid . ',';
+            }
+            $nids = trim($nids, ',');
+            if (isset($nids) && $nids != '') {
+                $search_nodes = db_query("SELECT entity_id FROM field_revision_field_friend_id n 
+                WHERE entity_id IN  ( " . $nids . " ) AND field_friend_id_value = '" . $user->mail . "' ")->fetchAll();
+            }
+            if (!empty($search_nodes)) {
+                foreach ($search_nodes as $k => $v) {
+                    $node_details = node_load($v->entity_id);
+                    $get_all_msg[] = $node_details;
+                }
+            }
+
+            //pa($get_all_msg);
+        }
+    } else {
+        $get_all_msg = inbox_message($status, $type);
+    }
+
+    $archive_msg_inbox = 'Archive (' . $archive_msg_inbox . ')';
+    $spam_msg_inbox = 'Spam (' . $spam_msg_inbox . ')';
+
+    $path = $base_url . '/' . path_to_theme();
+
+    include_once DRUPAL_ROOT . '/sites/all/modules/custom/custom_send_message/message_inbox.inc';
+
+    if ($arg[1] == 'add') {
+        module_load_include('inc', 'node', 'node.pages');
+        $message_node_form = new stdClass;
+        $message_node_form->type = 'message';
+        $message_node_form->language = LANGUAGE_NONE;
+        $message_form = drupal_get_form('message_node_form', $message_node_form);
+        global $base_url;
+        $path = $base_url . '/' . path_to_theme();
+        //pa($message_form);
+
+        $html .= '<div class="full-mesg-section">
+            <div class="row clearfix">
+                            	<div class="col-sm-6 col-sm-offset-6">
+                                	<div class="search-data">
+                                        <form id = "search_form" method = "post">';
+        if (isset($_POST['search']) && $_POST['search'] != '') {
+            $html .= '<input type="text" placeholder="Search" name = "search" value = "' . $_POST['search'] . '">';
+        } else {
+            $html .= '<input type="text" placeholder="Search" name = "search">';
+        }
+        $html .= '<button type="submit"><img src="' . $path . '/images/search-icon3.png" alt=""></button>
+                                            </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="conversation-box" id="custom-scroll-1">
+                            
+                            	<div id="content-section">
+                                
+                                    <div class="conversation">
+                                    	<div class="main-conversation clearfix">                                            
+                                            <div class="message-content new-mesg-content">';
+
+        $html .= '<form action="' . $message_form['#action'] . '" enctype="multipart/form-data" method="' . $message_form['#method'] . '"  id="' . $message_form['#id'] . '">';
+        //$html .= drupal_render($message_form['friends_ids']);
+        //pa($message_form);
+
+        $html .= drupal_render($message_form['field_friend_id']);
+        $html .= drupal_render($message_form['title']);
+        $html .= drupal_render($message_form['body']);
+        $html .= drupal_render($message_form['field_msg_attache']);
+        $html .= drupal_render($message_form['actions']['submit']);
+        $html .= '<div class = "col-sm-4" id = "emoticons">
+            <a  href="javascript:void(0)" title=":)"><img src="' . $path . '/images/smiley/angel.png" alt=""></a>
+            <a href="javascript:void(0)" title=":thk"><img src="' . $path . '/images/smiley/annoyed.png" alt=""></a>
+            <a href="javascript:void(0)" title=":blnk"><img src="' . $path . '/images/smiley/blanco.png" alt=""></a>
+            <a href="javascript:void(0)" title=":blush"><img src="' . $path . '/images/smiley/blush.png" alt=""></a>
+            <a href="javascript:void(0)" title=":bor"><img src="' . $path . '/images/smiley/boring.png" alt=""></a>
+            <a href="javascript:void(0)" title=":bsy"><img src="' . $path . '/images/smiley/busy.png" alt=""></a>
+            <a href="javascript:void(0)" title=":cool"><img src="' . $path . '/images/smiley/cool.png" alt=""></a>
+            <a href="javascript:void(0)" title=":czy"><img src="' . $path . '/images/smiley/crazy.png" alt=""></a>
+            <a href="javascript:void(0)" title=":cry"><img src="' . $path . '/images/smiley/cry.png" alt=""></a>
+            <a href="javascript:void(0)" title=":dvl"><img src="' . $path . '/images/smiley/devil.png" alt=""></a>
+            <a href="javascript:void(0)" title=":geek"><img src="' . $path . '/images/smiley/geek.png" alt=""></a>
+            <a href="javascript:void(0)" title=":ill"><img src="' . $path . '/images/smiley/ill.png" alt=""></a>
+            <a href="javascript:void(0)" title=":love"><img src="' . $path . '/images/smiley/in_love.png" alt=""></a>
+            <a href="javascript:void(0)" title=":kiss"><img src="' . $path . '/images/smiley/kissy.png" alt=""></a>
+            <a href="javascript:void(0)" title=":laugh"><img src="' . $path . '/images/smiley/laugh.png" alt=""></a>
+            <a href="javascript:void(0)" title="::whst"><img src="' . $path . '/images/smiley/not_guilty.png" alt=""></a>
+            <a href="javascript:void(0)" title=":lol"><img src="' . $path . '/images/smiley/oh.png" alt=""></a>
+            <a href="javascript:void(0)" title=":please"><img src="' . $path . '/images/smiley/please.png" alt=""></a>
+            <a href="javascript:void(0)" title=":sad"><img src="' . $path . '/images/smiley/sad.png" alt=""></a>
+            <a href="javascript:void(0)" title=":silly"><img src="' . $path . '/images/smiley/silly.png" alt=""></a>
+            <a href="javascript:void(0)" title=":slps"><img src="' . $path . '/images/smiley/speechless.png" alt=""></a>
+            <a href="javascript:void(0)" title=":srpd"><img src="' . $path . '/images/smiley/surprised.png" alt=""></a>
+            <a href="javascript:void(0)" title=":tease"><img src="' . $path . '/images/smiley/tease.png" alt=""></a>
+            <a href="javascript:void(0)" title=":wink"><img src="' . $path . '/images/smiley/wink.png" alt=""></a>
+            <a href="javascript:void(0)" title=":grin"><img src="' . $path . '/images/smiley/xd.png" alt=""></a>
+            <a href="javascript:void(0)" title=":zip"><img src="' . $path . '/images/smiley/zip_it.png" alt=""></a>
+            <a href="javascript:void(0)" title=":slp"><img src="' . $path . '/images/smiley/zzz.png" alt=""></a>';
+        $html .= '</div>';
+        $html .= '<div style="display:none">';
+        $html .= drupal_render_children($message_form);
+        $html .= '</div>';
+        $html .= '</form>';
+        //$html .= drupal_render_children($message_form);
+        $html .= '</div>
+                </div>
+                </div>
+                </div>
+                </div>';
+    }
+    $html .= '</div>
+                </div>
+                </div>
+                </div>
+                </div>
+                </div>
+                </div>
+                </section>';
+
+    return $html;
+}
+
+function custom_send_message_form_alter(&$form, $form_state, $form_id) {
+    //pa($form_id);
+    switch ($form_id) {
+        case 'message_node_form':
+            //pa(arg());
+            $default_val_email = "";
+            if (arg(2) != '') {
+                $user_load_info = user_load(arg(2));
+                $default_val_email = $user_load_info->mail;
+                $to = "";
+            } else {
+                $to = "To";
+            }
+            
+            $default_title = "";
+            if (arg(3) != '') {
+                $default_title = arg(3);
+                $title = "";
+            }
+            else {
+                $title = "Title";
+            }
+            //pa($form['actions']['submit']);
+            $form['field_friend_id'] = array(
+                '#title' => '',
+                '#type' => 'textfield',
+                '#default_value' => $default_val_email,
+                '#size' => '25',                
+                '#attributes' => array("placeholder" => $to),
+                '#autocomplete_path' => 'user_search/autocomplete',
+            );
+            $form['title'] = array(
+                '#title' => '',
+                '#type' => 'textfield',
+                '#size' => '25',
+                '#default_value' => $default_title,
+                '#attributes' => array("placeholder" => $title),
+            );
+            //pa($form);
+            $form['body'] = array(
+                '#title' => t(''),
+                '#type' => 'textarea',
+                '#attributes' => array("placeholder" => 'Message'),
+                    //$form['actions']['email']['#attributes']['placeholder'] = t('Email address...');
+            );
+
+            $form['field_friend_id']['#prefix'] = '<div class="form-field-box">';
+            $form['field_friend_id']['#suffix'] = '</div>';
+            $form['title']['#prefix'] = '<div class="form-field-box">';
+            $form['title']['#suffix'] = '</div>';
+            $form['body']['#prefix'] = '<div class="form-field-box">';
+            $form['body']['#suffix'] = '</div>';
+            //pa($form);
+            $form['actions']['submit']['#prefix'] = '<div class="continue text-right">';
+            $form['actions']['submit']['#suffix'] = '</div>';
+            $form['actions']['submit']['#attributes']['class'][] = 'btn-orange';
+            $form['actions']['submit']['#value'] = t('Send');
+            $form['actions']['submit']['#submit'][0] = 'custom_send_message_node_form_submit';
+            return $form;
+            break;
+    }
+}
+
+function custom_send_message_node_form_submit($form, &$form_state) {
+    global $base_url, $user;
+    if ($form_state['values']['field_friend_id'] == '') {
+        form_set_error('field_friend_id', 'To field is required');
+    }
+    if ($form_state['values']['body'] == '') {
+        form_set_error('body', 'Message field is required');
+    }
+
+    $current_url = 'http://' . $_SERVER['HTTP_HOST'] . '' . request_uri();
+    $node = node_form_submit_build_node($form, $form_state);
+    $form_state['body']['und']['0']['value'] = $form_state['values']['body'];
+    $message_id = 1;
+
+    if ($form_state['values']['body'] != '' && $form_state['values']['field_friend_id'] != '') {
+        $node->body['und'][0]['value'] = $form_state['values']['body'];
+        $node->field_message_status['und'][0]['value'] = 0;
+        $node->field_message_read['und'][0]['value'] = 1;
+        $node->field_message_id['und'][0]['value'] = 1;
+        $node->uid = $user->uid;
+
+
+
+        $image_url = $_FILES['files']['tmp_name']['field_msg_attache_und_0'];
+        $image_name = time() . $_FILES['files']['name']['field_msg_attache_und_0'];
+        $image_size = $_FILES['files']['size']['field_msg_attache_und_0'];
+
+
+        $file = new stdClass();
+        $file->uid = $user->uid;
+        $file->status = 0; // mark the file as temporary
+        $file->filename = basename($image_name);
+        $file->uri = 'public://' . $image_name;
+        $file->uid = $user->uid;
+        $file->filesize = $image_size;
+        $file_ = file_save($file);
+        //pa($file_);
+        $fileid = file_load($file_->fid);
+        //$fileid->filesize = $image_size;
+        $node->field_message_id['und'][0]['value'] = $file_->fid;
+        //);
+        //$node->field_msg_attache[$node->language][0] = (array) $file_;
+
+        $node->field_message_type['und'][0]['value'] = 'message';
+        $node->field_friend_id['und'][0]['value'] = $form_state['values']['field_friend_id'];
+        //pa($node);
+        node_save($node);
+        drupal_set_message(t('Message has been sent successfully'));
+        drupal_goto($current_url);
+    }
+}
+
+function fetch_user_list($string) {
+    $matches = array();
+
+    // Some fantasy DB table which holds cities
+    $query = db_select('users', 'u');
+
+    // Select rows that match the string
+    $return = $query
+            ->fields('u', array('mail'))
+            ->condition('u.mail', '%' . db_like($string) . '%', 'LIKE')
+            ->range(0, 10)
+            ->execute();
+
+    // add matches to $matches  
+    foreach ($return as $row) {
+        $matches[$row->mail] = check_plain($row->mail);
+    }
+
+    // return for JS
+    drupal_json_output($matches);
+}
+
+function inbox_message($status = "", $type = 'message') {
+    global $user;
+    $data = db_query("SELECT n.nid FROM {node} n 
+                LEFT JOIN {field_data_field_message_type} mt ON mt.entity_id = n.nid
+                LEFT JOIN {field_revision_field_friend_id} fr ON fr.entity_id = n.nid
+                WHERE n.uid != " . $user->uid . " AND field_message_type_value = :field_message_type_value AND field_friend_id_value = :field_friend_id_value", array(':field_message_type_value' => $type, ':field_friend_id_value' => $user->mail))->fetchAll();
+    if (!empty($data)) {
+        foreach ($data as $k => $v) {
+            //pa($v);
+            $node_details = node_load($v->nid);
+            $all_msgs[] = $node_details;
+        }
+        return $all_msgs;
+    }
+}
+
+function message_view() {
+
+    global $base_url, $user;
+    $arg = arg();
+    $main_profile = profile2_load_by_user($user->uid, "main");
+
+    //pa($uids);
+
+    $status = 0;
+    //pa($get_all_msg);
+    //$current_url = 'http://' . $_SERVER['HTTP_HOST'] . '' . request_uri();
+
+    $message_info = node_load(arg(3));
+    //pa($message_info);
+
+    $inbox_class = 'active';
+    $archive_class = '';
+    $spam_class = '';
+    if ($message_info->field_message_type['und'][0]['value'] == 'archive') {
+        $type = 'archive';
+        $archive_class = "active";
+        $inbox_class = '';
+        $spam_class = '';
+    }
+    if ($message_info->field_message_type['und'][0]['value'] == 'spam') {
+        $type = 'spam';
+        $archive_class = '';
+        $inbox_class = '';
+        $spam_class = 'active';
+    }
+
+    // Archive message 
+    if (arg(2) == 'archive' && arg(3) != '') {
+        // $message_info->field_message_status['und'][0]['value'] = 2;
+        $message_info->field_message_type['und'][0]['value'] = 'archive';
+        node_save($message_info);
+        //pa($message_info);
+        drupal_set_message(t('Message has been saved into archive'));
+        drupal_goto($base_url . '/send_message_to_friend/add/');
+    }
+    //Delete message
+    if (arg(2) == 'delete' && arg(3) != '') {
+        node_delete($message_info->nid);
+        drupal_set_message(t('Message has been deleted successfully'));
+        drupal_goto($base_url . '/send_message_to_friend/add/');
+    }
+    //Spam message
+    if (arg(2) == 'spam' && arg(3) != '') {
+        //$message_info->field_message_status['und'][0]['value'] = 3;
+        $message_info->field_message_type['und'][0]['value'] = 'spam';
+        node_save($message_info);
+        //pa($message_info);
+        drupal_set_message(t('Message has been saved into spam'));
+        drupal_goto($base_url . '/send_message_to_friend/add/');
+    }
+
+    $message_info->field_message_status['und'][0]['value'] = 1;
+    node_save($message_info);
+
+    //Archive
+    $message_type = 'message';
+    $unread_msg_inbox = count(message_type_unread_count($message_type));
+    $archive_type = 'archive';
+    $archive_msg_inbox = count(message_type_unread_count($archive_type));
+    $spam_type = 'spam';
+    $spam_msg_inbox = count(message_type_unread_count($spam_type));
+    // $get_all_msg = inbox_message($status, $type = 'message');
+
+    if (isset($_POST['search']) && $_POST['search'] != '') {
+        $u_search = db_query("SELECT uid FROM users n 
+                WHERE name LIKE '%" . $_POST['search'] . "%' OR  mail LIKE '%" . $_POST['search'] . "%'")->fetchAll();
+        $uids = "";
+        foreach ($u_search as $k => $v) {
+            $uids .= $v->uid . ',';
+        }
+        $uids = trim($uids, ',');
+
+        if ($uids != '') {
+            $select_msg_nodes = db_query("SELECT nid FROM node n 
+                WHERE uid IN  ( " . $uids . " ) AND type = 'message' ")->fetchAll();
+
+            foreach ($select_msg_nodes as $k => $v) {
+                $nids .= $v->nid . ',';
+            }
+            $nids = trim($nids, ',');
+
+            $search_nodes = db_query("SELECT entity_id FROM field_revision_field_friend_id n 
+                WHERE entity_id IN  ( " . $nids . " ) AND field_friend_id_value = '" . $user->mail . "' ")->fetchAll();
+
+            if (!empty($search_nodes)) {
+                foreach ($search_nodes as $k => $v) {
+                    $node_details = node_load($v->entity_id);
+                    $get_all_msg[] = $node_details;
+                }
+            }
+            //pa($get_all_msg);
+        }
+    } else {
+        $get_all_msg = inbox_message($status, $message_info->field_message_type['und'][0]['value']);
+    }
+
+
+    $archive_msg_inbox = 'Archive (' . $archive_msg_inbox . ')';
+    $spam_msg_inbox = 'Spam (' . $spam_msg_inbox . ')';
+
+
+
+    //pa($message_info);
+    $path = $base_url . '/' . path_to_theme();
+
+    include_once DRUPAL_ROOT . '/sites/all/modules/custom/custom_send_message/message_inbox.inc';
+
+    if ($arg[1] == 'view') {
+        include_once DRUPAL_ROOT . '/sites/all/modules/custom/custom_send_message/message_view.inc';
+    }
+
+    $html .= '</div>
+                </div>
+                </div>
+                </div>
+                </div>
+                </div>
+                </div>
+                </section>
+                ';
+
+    return $html;
+}
+
+function message_type_unread_count($type) {
+    //$message_type = 'message';    
+    global $user;
+    $all_message_status = db_query("SELECT n.nid FROM {node} n 
+                LEFT JOIN {field_data_field_message_status} ms ON ms.entity_id = n.nid
+                LEFT JOIN {field_data_field_message_type} mt ON mt.entity_id = n.nid
+                LEFT JOIN {field_revision_field_friend_id} fr ON fr.entity_id = n.nid
+                WHERE n.uid != " . $user->uid . " AND field_message_type_value = :field_message_type_value AND field_message_status_value = :field_message_status_value AND field_friend_id_value = :field_friend_id_value", array(':field_message_type_value' => $type, ':field_message_status_value' => 0, ':field_friend_id_value' => $user->mail))->fetchAll();
+    return $all_message_status;
+}
+
+function parseString($string) {
+    global $base_url;
+    $path = $base_url . '/' . path_to_theme();
+
+    $my_smilies = array(
+        ':)' => '<img src="' . $path . '/images/smiley/angel.png" alt="">',
+        ':thk' => '<img src="' . $path . '/images/smiley/annoyed.png" alt="">',
+        ':blnk' => '<img src="' . $path . '/images/smiley/blanco.png" alt="">',
+        ':blush' => '<img src="' . $path . '/images/smiley/blush.png" alt="">',
+        ':bor' => '<img src="' . $path . '/images/smiley/boring.png" alt="">',
+        ':bsy' => '<img src="' . $path . '/images/smiley/busy.png" alt="">',
+        ':cool' => '<img src="' . $path . '/images/smiley/cool.png" alt="">',
+        ':czy' => '<img src="' . $path . '/images/smiley/crazy.png" alt="">',
+        ':cry' => '<img src="' . $path . '/images/smiley/cry.png" alt="">',
+        ':dvl' => '<img src="' . $path . '/images/smiley/devil.png" alt="">',
+        ':geek' => '<img src="' . $path . '/images/smiley/geek.png" alt="">',
+        ':ill' => '<img src="' . $path . '/images/smiley/ill.png" alt="">',
+        ':love' => '<img src="' . $path . '/images/smiley/in_love.png" alt="">',
+        ':kiss' => '<img src="' . $path . '/images/smiley/kissy.png" alt="">',
+        ':laugh' => '<img src="' . $path . '/images/smiley/laugh.png" alt="">',
+        ':whst' => '<img src="' . $path . '/images/smiley/not_guilty.png" alt="">',
+        ':lol' => '<img src="' . $path . '/images/smiley/oh.png" alt="">',
+        ':please' => '<img src="' . $path . '/images/smiley/please.png" alt="">',
+        ':sad' => '<img src="' . $path . '/images/smiley/sad.png" alt="">',
+        ':silly' => '<img src="' . $path . '/images/smiley/silly.png" alt="">',
+        ':slps' => '<img src="' . $path . '/images/smiley/speechless.png" alt="">',
+        ':srpd' => '<img src="' . $path . '/images/smiley/surprised.png" alt="">',
+        ':tease' => '<img src="' . $path . '/images/smiley/tease.png" alt="">',
+        ':wink' => '<img src="' . $path . '/images/smiley/wink.png" alt="">',
+        ':grin' => '<img src="' . $path . '/images/smiley/xd.png" alt="">',
+        ':zip' => '<img src="' . $path . '/images/smiley/zip_it.png" alt="">',
+        ':slp' => '<img src="' . $path . '/images/smiley/zzz.png" alt="">'
+    );
+    return str_replace(array_keys($my_smilies), array_values($my_smilies), $string);
+}
+
+function outputFile($filePath, $fileName, $mimeType = '') {
+    // Setup
+    $mimeTypes = array(
+        'pdf' => 'application/pdf',
+        'txt' => 'text/plain',
+        'html' => 'text/html',
+        'exe' => 'application/octet-stream',
+        'zip' => 'application/zip',
+        'doc' => 'application/msword',
+        'xls' => 'application/vnd.ms-excel',
+        'ppt' => 'application/vnd.ms-powerpoint',
+        'gif' => 'image/gif',
+        'png' => 'image/png',
+        'jpeg' => 'image/jpg',
+        'jpg' => 'image/jpg',
+        'php' => 'text/plain'
+    );
+    //pa($fileName);
+    // Send Headers
+    //-- next line fixed as per suggestion --
+    header('Content-Type: ' . $mimeTypes[$mimeType]);
+    header('Content-Disposition: attachment; filename="' . $fileName . '"');
+    header('Content-Transfer-Encoding: binary');
+    header('Accept-Ranges: bytes');
+    header('Cache-Control: private');
+    header('Pragma: private');
+    header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+    readfile($filePath);
+    exit;
+}
+?>
+

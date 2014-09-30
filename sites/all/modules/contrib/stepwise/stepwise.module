@@ -1,0 +1,454 @@
+<?php
+/**
+ *
+ *
+ * @file
+ */
+
+/**
+ * Implements hook_menu().
+ *
+ * @return array
+ */
+function stepwise_menu() {
+  $items = array();
+
+  $items['admin/config/workflow/stepwise'] = array(
+    'title' => 'Stepwise',
+    'description' => 'List of configurations.',
+    'type' => MENU_NORMAL_ITEM,
+    'page callback' => 'stepwise_configuration_list',
+    'access arguments' => array('access stepwise'),
+    'file' => 'stepwise.pages.inc',
+  );
+
+  $items['stepwise/%/%/display/%ctools_js/%/step'] = array(
+    'title callback' => 'stepwise_title_callback',
+    'title arguments' => array(1),
+    'description' => t('Configuration workflow page'),
+    'type' => MENU_CALLBACK,
+    'page callback' => 'stepwise_page_form',
+    'page arguments' => array(1, 2, 4, 5),
+    'access arguments' => array('access stepwise'),
+    'file' => 'stepwise.pages.inc',
+  );
+
+  $items['admin/config/workflow/stepwise/add'] = array(
+    'title' => 'Create a workflow',
+    'description' => 'This menu is to create a configuration workflow.',
+    'type' => MENU_LOCAL_ACTION,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('stepwise_add_form'),
+    'access arguments' => array('administer stepwise'),
+    'file' => 'stepwise.pages.inc',
+  );
+
+  $items['admin/config/workflow/stepwise/%stepwise'] = array(
+    'title' => 'Edit a workflow',
+    'description' => 'This menu is to edit a configuration workflow.',
+    'type' => MENU_CALLBACK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('stepwise_edit_form', 4),
+    'access arguments' => array('administer stepwise'),
+    'file' => 'stepwise.pages.inc',
+  );
+
+  $items['admin/config/workflow/stepwise/%stepwise/edit'] = array(
+    'title' => 'Edit a workflow',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+
+  $items['admin/config/workflow/stepwise/%stepwise/settings'] = array(
+    'title' => 'Stepwise settings',
+    'description' => 'Stepwise settings form',
+    'type' => MENU_LOCAL_TASK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('stepwise_settings_form', 4),
+    'access arguments' => array('administer stepwise'),
+    'file' => 'stepwise.pages.inc',
+  );
+
+  $items['admin/config/workflow/stepwise/close'] = array(
+    'title' => 'Close the workflow builder',
+    'description' => 'This callback will close the actually edited workflow builder',
+    'type' => MENU_CALLBACK,
+    'page callback' => 'stepwise_close_stepwise_configuration_builder',
+    'access arguments' => array('administer stepwise'),
+  );
+
+  $items['admin/config/workflow/stepwise/%stepwise/step/%/add'] = array(
+    'title' => 'Add step',
+    'type' => MENU_LOCAL_ACTION,
+    'context' => MENU_CONTEXT_INLINE,
+    'page callback' => 'stepwise_add_step',
+    'page arguments' => array(4, 6),
+    'access arguments' => array('administer stepwise'),
+  );
+
+  $items['admin/config/workflow/stepwise/%stepwise/step/%/remove'] = array(
+    'title' => 'Remove a step from the workflow',
+    'description' => 'This callback removes a step from the active workflow.',
+    'type' => MENU_CALLBACK,
+    'page callback' => 'stepwise_remove_step',
+    'page arguments' => array(4, 6),
+    'access arguments' => array('administer stepwise'),
+  );
+
+
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ *
+ * @return array
+ */
+function stepwise_permission() {
+  return array(
+    'access stepwise' => array(
+      'title' => t('Access stepwise'),
+    ),
+    'administer stepwise' => array(
+      'title' => t('Administer stepwise'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_form_alter().
+ *
+ * @param $form
+ * @param $form_state
+ * @param $form_id
+ */
+function stepwise_form_alter(&$form, &$form_state, $form_id) {
+  // The currently edited stepwise workflow is stored in the $_SESSION['active_stepwise'] variable.
+  if (isset($_SESSION['active_stepwise'])) {
+    // Store every form variable in ctools cache.
+    $active_page_form_variables = stepwise_object_cache_get('active_page_form_variables');
+    $active_page_form_variables[$form_id] = $form_state['build_info']['args'];
+    stepwise_object_cache_set('active_page_form_variables', $active_page_form_variables);
+    // Add the "Add step" contextual link.
+    $form['#contextual_links']['stepwise'] = array('admin/config/workflow/stepwise',
+      array($_SESSION['active_stepwise'], 'step',  $form_id, 'add'));
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * @param $form
+ * @param $form_state
+ * @param $form_id
+ */
+function stepwise_form_system_modules_alter(&$form, &$form_state, $form_id) {
+  $configurations = stepwise_get_configurations();
+  if (module_exists('module_filter')) {
+    // Expand colspace for two new links.
+    if (isset($form['modules']['#header'][4]['colspan'])) {
+      $form['modules']['#header'][4]['colspan'] = 5;
+    }
+    foreach ($configurations as $configuration) {
+      if (isset($form['modules'][$configuration->promote])) {
+        $form['modules'][$configuration->promote]['links']['stepwise'] = array(
+          '#type' => 'link',
+          '#title' => t('Stepwise'),
+          '#href' => 'stepwise/'  . $configuration->module . '/' . $configuration->id . '/display/nojs/0/step',
+          '#options' => array(
+            'attributes' => array(
+              'class' => array(
+                'module-link',
+                'module-link-stepwise'
+              ),
+            ),
+          ),
+        );
+      }
+    }
+  }
+  else {
+    foreach ($configurations as $configuration) {
+      foreach ($form['modules'] as $group => $modules) {
+        // Expand colspace for two new links.
+        if (isset($form['modules'][$group]['#header'][4]['colspan'])) {
+          $form['modules'][$group]['#header'][4]['colspan'] = 5;
+        }
+        if (isset($modules[$configuration->promote])) {
+          $form['modules'][$group][$configuration->promote]['links']['stepwise'] = array(
+            '#type' => 'link',
+            '#title' => t('Stepwise'),
+            '#href' => 'stepwise/'  . $configuration->module . '/' . $configuration->id . '/display/nojs/0/step',
+            '#options' => array(
+              'attributes' => array(
+                'class' => array(
+                  'module-link',
+                  'module-link-stepwise'
+                ),
+              ),
+            ),
+          );
+          break;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_theme().
+ *
+ * @return array
+ */
+function stepwise_theme() {
+  return array(
+    'stepwise_edit_form' => array(
+      'render element' => 'form',
+      'file' => 'stepwise.theme.inc'
+    ),
+    'stepwise_dialog' => array(
+      'render element' => 'element',
+      'file' => 'stepwise.theme.inc'
+    ),
+  );
+}
+
+/**
+ * Implements hook_page_alter().
+ *
+ * @param $page
+ */
+function stepwise_page_alter(&$page) {
+  if (isset($_SESSION['active_stepwise']) && $stepwise = stepwise_object_cache_get($_SESSION['active_stepwise'])) {
+    $page['page_bottom']['stepwise'] = array(
+      '#markup' => stepwise_dialog_content($stepwise),
+    );
+  }
+}
+
+/**
+ * Implements hook_hook_info().
+ *
+ * @return array
+ */
+function stepwise_hook_info() {
+  $hooks = array();
+
+  $hooks['stepwise_configuration_info'] = array(
+    'group' => 'stepwise',
+  );
+
+  return $hooks;
+}
+
+/**
+ * Implements hook_theme_registry_alter().
+ *
+ * @param $theme_registry
+ */
+function stepwise_theme_registry_alter(&$theme_registry) {
+  if (!empty($theme_registry['system_modules_fieldset'])) {
+    $theme_registry['system_modules_fieldset']['function'] = '_stepwise_system_modules_fieldset';
+    $theme_registry['system_modules_fieldset']['includes'][] = drupal_get_path('module', 'stepwise') . '/stepwise.theme.inc';
+  }
+  if (!empty($theme_registry['module_filter_modules_table'])) {
+    $theme_registry['module_filter_modules_table']['function'] = '_stepwise_module_filter_modules_table';
+    $theme_registry['module_filter_modules_table']['includes'][] = drupal_get_path('module', 'stepwise') . '/stepwise.theme.inc';
+  }
+}
+
+/**
+ * Stepwise workflow title callback.
+ *
+ * @param $id
+ */
+function stepwise_title_callback($title) {
+  return $title;
+}
+
+/**
+ * Load a stepwise object.
+ *
+ * @param $id
+ */
+function stepwise_load($name, $reset = FALSE) {
+  // Return with the cached data if we are currently editing a stepwise configuration or not force to reset the cache
+  // and the cache is not empty.
+  $cache =  stepwise_object_cache_get($name);
+  if ((isset($_SESSION['active_stepwise']) || !$reset) && !is_null($cache)) {
+    return $cache;
+  }
+  // Otherwise load everything from code
+  $configurations = stepwise_get_configurations();
+  if (!isset($configurations[$name])) {
+    return NULL;
+  }
+  // and set the cache.
+  stepwise_object_cache_set($name, $configurations[$name]);
+  return $configurations[$name];
+}
+
+/**
+ * Stepwise configuration builder dialog elements.
+ *
+ * @return string
+ */
+function stepwise_dialog_content($conf) {
+  $links = array(
+    'edit' => l('edit', 'admin/config/workflow/stepwise/' . $conf->name . '/edit'),
+    'close' => l('close', 'admin/config/workflow/stepwise/close',
+      array('query' => array('destination' => 'admin/config/workflow/stepwise'))),
+  );
+  $content['conf'] = (array) $conf;
+  $content['conf']['links'] = $links;
+  $content['#theme'] = 'stepwise_dialog';
+  $content['#prefix'] = '<div id="stepwise-dialog"><div id="stepwise-dialog-wrapper">';
+  $content['#suffix'] = '</div></div>';
+
+  drupal_alter('stepwise_dialog_output', $content);
+  $content = drupal_render($content);
+
+  return $content;
+}
+
+/**
+ * Remove submit form elements from a form array.
+ *
+ * @param $form
+ */
+function stepwise_remove_submit_buttons(&$form) {
+  foreach (element_children($form) as $key) {
+    // Don't remove ctools submit buttons
+    if ($key == 'buttons') {
+      continue;
+    }
+    // Hide all of the form submit buttons.
+    if (isset($form[$key]['#type']) && $form[$key]['#type'] == 'submit') {
+      $form[$key]['#access'] = FALSE;
+    }
+    // Execute the recursive callback.
+    if (is_array($form[$key])) {
+      stepwise_remove_submit_buttons($form[$key]);
+    }
+  }
+}
+
+/**
+ * Load Stepwise configurations configurations.
+ *
+ * @param
+ *
+ * @return array
+ */
+function stepwise_get_configurations() {
+  $types = array();
+
+  foreach (module_implements('stepwise_configuration_info') as $module) {
+    $configurations = module_invoke($module, 'stepwise_configuration_info');
+    foreach ($configurations as $id => $conf) {
+      if (isset($conf['name'])) {
+        $types[$id] = (object) $conf;
+        $types[$id]->module = $module;
+        $types[$id]->id = $id;
+      }
+    }
+  }
+
+  return $types;
+}
+
+/**
+ * Add the selected form to the currently edited stepwise.
+ *
+ * @param $stepwise
+ * @param $step
+ */
+function stepwise_add_step($stepwise, $step) {
+  if (isset($_SESSION['active_stepwise']) && isset($_GET['destination'])) {
+    $active_page_form_variables = stepwise_object_cache_get('active_page_form_variables');
+    // Extend the currently edited stepwise steps with the $step.
+    $stepwise->steps[] = array(
+      'form' => $step,
+      'url' => $_GET['destination'],
+      'arguments' => $active_page_form_variables[$step],
+    );
+    // Update the stepwise cache.
+    stepwise_object_cache_set($stepwise->name, $stepwise);
+    drupal_set_message(t('You have successfully added the @name as the @step. step.', array('@name' => $stepwise->name,
+      '@step' => count($stepwise->steps))));
+  }
+  // Redirect back to the destination.
+  drupal_goto();
+}
+
+/**
+ * Remove a step from the edited configuration.
+ *
+ * @param $stepwise
+ * @param $step
+ */
+function stepwise_remove_step($stepwise, $step) {
+  if (isset($_SESSION['active_stepwise'])) {
+    // Remove the given step from the steps array.
+    unset($stepwise->steps[$step]);
+    $stepwise->steps = array_values($stepwise->steps);
+    // Update the cache.
+    stepwise_object_cache_set($stepwise->name, $stepwise);
+    drupal_set_message(t('You have just removed the @step. @name step.', array('@name' => $stepwise->name, '@step' => count($stepwise->steps))));
+  }
+  // Redirect back to the destination.
+  drupal_goto();
+}
+
+/**
+ * Close the Stepwise configuration builder.
+ */
+function stepwise_close_stepwise_configuration_builder() {
+  if (isset($_SESSION['active_stepwise'])) {
+    ctools_include('object-cache');
+    // Clear the active_page_form_variables cache.
+    ctools_object_cache_clear('stepwise', 'active_page_form_variables');
+    // Close the active stepwise session.
+    unset($_SESSION['active_stepwise']);
+    // Redirect to the destination.
+    drupal_goto();
+  }
+}
+
+/**
+ * Create a link to a Stepwise configuration.
+ *
+ * @param $module
+ * @param $name
+ * @param $label
+ * @param bool $modal
+ *
+ * @return string
+ */
+function stepwise_link($conf, $modal = FALSE) {
+  return l($conf->name, 'stepwise/'  . $conf->module . '/' . $conf->id . '/display/nojs/0/step');
+}
+
+/**
+ * Load the given Stepwise configuration form cache.
+ *
+ * @param $name
+ *
+ * @return null
+ */
+function stepwise_object_cache_get($name) {
+  ctools_include('object-cache');
+  $conf = ctools_object_cache_get('stepwise', $name);
+  return $conf;
+}
+
+/**
+ * Save a Stepwise configuration.
+ *
+ * @param $name
+ * @param $conf
+ */
+function stepwise_object_cache_set($name, $conf) {
+  ctools_include('object-cache');
+  ctools_object_cache_set('stepwise', $name, $conf);
+}
